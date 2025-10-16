@@ -21,6 +21,7 @@ build/
 *.db-journal
 prisma/migrations/dev.db*
 prisma/*.db
+prisma/*.db-journal
 
 # Logs
 *.log
