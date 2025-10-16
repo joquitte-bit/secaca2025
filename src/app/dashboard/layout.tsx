@@ -1,35 +1,55 @@
 // src/app/dashboard/layout.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { DashboardNav } from '@/components/DashboardNav'
 import { DashboardSidebar } from '@/components/DashboardSidebar'
-import { AuthProvider } from '@/components/AuthProvider'
-import { createClient } from '@/lib/supabase/server'
 
-export default async function DashboardLayout({
+type Section = 'dashboard' | 'modules' | 'lessons' | 'users' | 'analytics' | 'settings'
+
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  const { data: { user } } = await supabase.auth.getUser()
+  const [activeSection, setActiveSection] = useState<Section>('dashboard')
+  const pathname = usePathname()
+
+  // Bepaal actieve sectie gebaseerd op huidige route
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/modules')) {
+      setActiveSection('modules')
+    } else if (pathname.startsWith('/dashboard/lessons')) {
+      setActiveSection('lessons')
+    } else if (pathname.startsWith('/dashboard/users')) {
+      setActiveSection('users')
+    } else if (pathname.startsWith('/dashboard/analytics')) {
+      setActiveSection('analytics')
+    } else if (pathname.startsWith('/dashboard/settings')) {
+      setActiveSection('settings')
+    } else {
+      setActiveSection('dashboard')
+    }
+  }, [pathname])
 
   return (
-    <AuthProvider session={session} user={user}>
-      <div className="min-h-screen bg-gray-50">
-        <DashboardNav 
-          activeSection="dashboard" 
-          onSectionChange={() => {}} 
-          user={user}
-        />
-        <div className="flex pt-16">
-          <DashboardSidebar activeSection="dashboard" />
-          <main className="flex-1 lg:ml-56">
-            <div className="p-6">
-              {children}
-            </div>
-          </main>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <DashboardNav 
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+      />
+      {/* Verwijder pt-16 zodat sidebar direct onder navbar start */}
+      <div className="flex">
+        <DashboardSidebar activeSection={activeSection} />
+        {/* Main content - 100% breedte en perfecte alignment */}
+        <main className="flex-1 min-w-0">
+          {/* Gebruik dezelfde padding als de navbar voor perfecte alignment */}
+          <div className="px-4 sm:px-6 lg:px-8 py-6 w-full max-w-full">
+            {children}
+          </div>
+        </main>
       </div>
-    </AuthProvider>
+    </div>
   )
 }

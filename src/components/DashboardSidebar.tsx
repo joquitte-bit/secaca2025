@@ -5,13 +5,29 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icons } from './Icons'
 
-const sidebarSections = {
+const navSections = [
+  { id: 'dashboard', name: 'Dashboard', icon: Icons.dashboard },
+  { id: 'modules', name: 'Modules', icon: Icons.modules },
+  { id: 'lessons', name: 'Lessen', icon: Icons.lessons },
+  { id: 'users', name: 'Gebruikers', icon: Icons.users },
+  { id: 'analytics', name: 'Analytics', icon: Icons.analytics },
+  { id: 'settings', name: 'Instellingen', icon: Icons.settings },
+] as const
+
+// Gebruik hetzelfde Section type als in DashboardNav
+type Section = typeof navSections[number]['id']
+
+const sidebarSections: Record<Section, {
+  title: string
+  icon: any
+  items: { name: string; href: string; icon: any }[]
+}> = {
   dashboard: {
     title: 'Dashboard',
     icon: Icons.dashboard,
     items: [
       { name: 'Overzicht', href: '/dashboard', icon: Icons.dashboard },
-      { name: 'Snelle Statistieken', href: '/dashboard/quick-stats', icon: Icons.chart },
+      { name: 'Snelle Statistieken', href: '/dashboard/quick-stats', icon: Icons.analytics },
       { name: 'Recente Activiteit', href: '/dashboard/activity', icon: Icons.check },
       { name: 'Voortgang', href: '/dashboard/progress', icon: Icons.analytics },
     ]
@@ -52,7 +68,7 @@ const sidebarSections = {
     items: [
       { name: 'Overzicht', href: '/dashboard/analytics', icon: Icons.analytics },
       { name: 'Rapporten', href: '/dashboard/analytics/reports', icon: Icons.document },
-      { name: 'Export', href: '/dashboard/analytics/export', icon: Icons.chart },
+      { name: 'Export', href: '/dashboard/analytics/export', icon: Icons.analytics },
     ]
   },
   settings: {
@@ -67,7 +83,7 @@ const sidebarSections = {
 }
 
 interface DashboardSidebarProps {
-  activeSection?: keyof typeof sidebarSections | null
+  activeSection?: Section | null
 }
 
 export function DashboardSidebar({ 
