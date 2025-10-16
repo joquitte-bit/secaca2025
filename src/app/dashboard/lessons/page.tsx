@@ -1,16 +1,10 @@
 // src/app/dashboard/lessons/page.tsx
-import { getUser } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+'use client'
+
 import Link from 'next/link'
 import { Icons } from '@/components/Icons'
 
-export default async function LessonsPage() {
-  const user = await getUser()
-  
-  if (!user) {
-    redirect('/login')
-  }
-
+export default function LessonsPage() {
   const lessons = [
     { 
       id: 1, 
@@ -67,7 +61,7 @@ export default async function LessonsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="p-2 bg-gray-100 rounded-lg">
-                    <Icons.document />
+                    <Icons.document className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-3">
@@ -101,7 +95,7 @@ export default async function LessonsPage() {
                     href={`/dashboard/lessons/${lesson.id}/edit`}
                     className="text-gray-600 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                   >
-                    <Icons.settings />
+                    <Icons.settings className="w-4 h-4" />
                   </Link>
                   <button className="text-gray-600 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

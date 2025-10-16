@@ -1,15 +1,9 @@
 // src/app/dashboard/analytics/page.tsx
-import { getUser } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+'use client'
+
 import { Icons } from '@/components/Icons'
 
-export default async function AnalyticsPage() {
-  const user = await getUser()
-  
-  if (!user) {
-    redirect('/login')
-  }
-
+export default function AnalyticsPage() {
   const analyticsData = {
     completionRates: [
       { module: 'Phishing Awareness', completion: 85 },

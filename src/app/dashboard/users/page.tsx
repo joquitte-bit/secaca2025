@@ -1,15 +1,9 @@
 // src/app/dashboard/users/page.tsx
-import { getUser } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+'use client'
+
 import { Icons } from '@/components/Icons'
 
-export default async function UsersPage() {
-  const user = await getUser()
-  
-  if (!user) {
-    redirect('/login')
-  }
-
+export default function UsersPage() {
   const users = [
     { 
       id: 1, 
@@ -70,7 +64,7 @@ export default async function UsersPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="p-2 bg-gray-100 rounded-lg">
-                    <Icons.user />
+                    <Icons.user className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-3">
@@ -101,7 +95,7 @@ export default async function UsersPage() {
                 
                 <div className="flex items-center space-x-2">
                   <button className="text-gray-600 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                    <Icons.settings />
+                    <Icons.settings className="w-4 h-4" />
                   </button>
                   <button className="text-gray-600 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

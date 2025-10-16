@@ -1,13 +1,14 @@
-// src/app/dashboard/page.tsx
+// src/app/dashboard/dashboard-client.tsx
 'use client'
 
 import Link from 'next/link'
 import { Icons } from '@/components/Icons'
-import { useAuth } from '@/components/AuthProvider' // Gewijzigde import
 
-export default function Dashboard() {
-  const { user } = useAuth()
+interface DashboardClientPageProps {
+  user: any
+}
 
+export default function DashboardClientPage({ user }: DashboardClientPageProps) {
   const quickActions = [
     {
       title: 'Snelle Statistieken',

@@ -1,45 +1,35 @@
 // src/app/dashboard/layout.tsx
-'use client'
-
-import { useState } from 'react'
 import { DashboardNav } from '@/components/DashboardNav'
 import { DashboardSidebar } from '@/components/DashboardSidebar'
+import { AuthProvider } from '@/components/AuthProvider'
+import { createClient } from '@/lib/supabase/server'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [activeSection, setActiveSection] = useState<string | null>('dashboard')
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-
-  const handleSectionChange = (section: string | null) => {
-    setActiveSection(section)
-  }
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen)
-  }
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <DashboardNav 
-        onSectionChange={handleSectionChange}
-        activeSection={activeSection}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={toggleSidebar}
-      />
-      <div className="flex flex-1 relative">
-        <DashboardSidebar 
-          activeSection={activeSection as any} 
-          isOpen={isSidebarOpen}
-          onToggleSidebar={toggleSidebar}
-          onClose={() => setIsSidebarOpen(false)}
+    <AuthProvider session={session} user={user}>
+      <div className="min-h-screen bg-gray-50">
+        <DashboardNav 
+          activeSection="dashboard" 
+          onSectionChange={() => {}} 
+          user={user}
         />
-        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'lg:ml-56' : ''}`}>
-          {children}
-        </main>
+        <div className="flex pt-16">
+          <DashboardSidebar activeSection="dashboard" />
+          <main className="flex-1 lg:ml-56">
+            <div className="p-6">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   )
 }
