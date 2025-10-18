@@ -1,91 +1,70 @@
-// 📁 BESTAND: /src/components/CourseModal.tsx - GECORRIGEERDE INTERFACE
+// 📁 BESTAND: /src/components/LessonModal.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { Icons } from './Icons'
 
-interface Module {
-  id: number
-  title: string
-  duration: number
-  category: string
-  status: 'Actief' | 'Inactief' | 'Concept'
-  lessons: number
-}
-
-// VERBETERDE Course interface - voeg ontbrekende properties toe
-interface Course {
+interface Lesson {
   id?: number
   title: string
   description: string
   category: string
   difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
   status: 'Actief' | 'Inactief' | 'Concept'
+  type: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
+  duration: number
+  content?: string
   tags?: string[]
-  includedModules?: number[]
   order?: number
-  // NIEUW: Voeg ontbrekende properties toe
-  students?: number
-  progress?: number
-  modules?: number
-  duration?: number
-  createdAt?: string
-  updatedAt?: string
 }
 
-interface CourseModalProps {
-  course: Course | null
+interface LessonModalProps {
+  lesson: Lesson | null
   categories: string[]
+  lessonTypes: string[]
   onClose: () => void
-  onSave: (courseData: any) => void
+  onSave: (lessonData: any) => void
 }
 
-// Mock modules data - in een echte app komt dit uit de database
-const availableModules: Module[] = [
-  { id: 1, title: 'Phishing Awareness Training', duration: 60, category: 'Security Basics', status: 'Actief', lessons: 5 },
-  { id: 2, title: 'Social Engineering Defense', duration: 45, category: 'Advanced Security', status: 'Actief', lessons: 4 },
-  { id: 3, title: 'Password Security Mastery', duration: 30, category: 'Security Basics', status: 'Actief', lessons: 3 },
-  { id: 4, title: 'Data Protection Fundamentals', duration: 75, category: 'Data Security', status: 'Actief', lessons: 6 },
-  { id: 5, title: 'CEO Fraude Herkenning', duration: 25, category: 'Advanced Security', status: 'Concept', lessons: 2 },
-]
-
-export function CourseModal({ course, categories, onClose, onSave }: CourseModalProps) {
-  const [formData, setFormData] = useState<Course>({
+export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }: LessonModalProps) {
+  const [formData, setFormData] = useState<Lesson>({
     title: '',
     description: '',
     category: '',
     difficulty: 'Beginner',
     status: 'Concept',
+    type: 'Video',
+    duration: 0,
+    content: '',
     tags: [],
-    includedModules: [],
     order: 0
   })
 
   const [tagInput, setTagInput] = useState('')
-  const [moduleSearch, setModuleSearch] = useState('')
-  const [selectedModuleCategory, setSelectedModuleCategory] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (course) {
+    if (lesson) {
       setFormData({
-        title: course.title || '',
-        description: course.description || '',
-        category: course.category || '',
-        difficulty: course.difficulty || 'Beginner',
-        status: course.status || 'Concept',
-        tags: course.tags || [],
-        includedModules: course.includedModules || [],
-        order: course.order || 0
+        title: lesson.title || '',
+        description: lesson.description || '',
+        category: lesson.category || '',
+        difficulty: lesson.difficulty || 'Beginner',
+        status: lesson.status || 'Concept',
+        type: lesson.type || 'Video',
+        duration: lesson.duration || 0,
+        content: lesson.content || '',
+        tags: lesson.tags || [],
+        order: lesson.order || 0
       })
     } else {
-      // Nieuwe course - bepaal volgende order nummer
+      // Nieuwe lesson - bepaal volgende order nummer
       setFormData(prev => ({
         ...prev,
         order: categories.length > 0 ? categories.length + 1 : 1
       }))
     }
-  }, [course, categories])
+  }, [lesson, categories])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,28 +73,17 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     setIsSubmitting(true)
 
     try {
-      // Bereken totale duur op basis van geselecteerde modules
-      const selectedModules = availableModules.filter(module => 
-        formData.includedModules?.includes(module.id)
-      )
-      const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
-      const totalLessons = selectedModules.reduce((total, module) => total + module.lessons, 0)
-      
-      const courseData = {
+      const lessonData = {
         ...formData,
-        id: course?.id || Date.now(),
-        duration: totalDuration,
-        modules: formData.includedModules?.length || 0,
-        students: course?.students || 0, // FIX: Gebruik course.student of default 0
-        progress: course?.progress || 0,  // FIX: Gebruik course.progress of default 0
-        createdAt: course?.createdAt || new Date().toISOString().split('T')[0],
+        id: lesson?.id || Date.now(),
+        createdAt: new Date().toISOString().split('T')[0],
         updatedAt: new Date().toISOString().split('T')[0]
       }
 
-      await onSave(courseData)
+      await onSave(lessonData)
       onClose()
     } catch (error) {
-      console.error('Error saving course:', error)
+      console.error('Error saving lesson:', error)
     } finally {
       setIsSubmitting(false)
     }
@@ -138,46 +106,11 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     }))
   }
 
-  const toggleModuleSelection = (moduleId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      includedModules: prev.includedModules?.includes(moduleId)
-        ? prev.includedModules.filter(id => id !== moduleId)
-        : [...(prev.includedModules || []), moduleId]
-    }))
-  }
-
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       addTag()
     }
-  }
-
-  // Module filtering (zoals in ModuleModal)
-  const getFilteredModules = () => {
-    return availableModules.filter(module => {
-      const matchesSearch = module.title.toLowerCase().includes(moduleSearch.toLowerCase())
-      const matchesCategory = !selectedModuleCategory || module.category === selectedModuleCategory
-      return matchesSearch && matchesCategory
-    })
-  }
-
-  const filteredModules = getFilteredModules()
-  const selectedModules = availableModules.filter(module => formData.includedModules?.includes(module.id))
-  const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
-  const totalLessons = selectedModules.reduce((total, module) => total + module.lessons, 0)
-
-  const selectAllModules = () => {
-    const allModuleIds = filteredModules.map(module => module.id)
-    
-    setFormData(prev => ({
-      ...prev,
-      includedModules: 
-        prev.includedModules?.length === allModuleIds.length 
-          ? [] 
-          : allModuleIds
-    }))
   }
 
   return (
@@ -186,7 +119,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
-              {course ? 'Course Bewerken' : 'Nieuwe Course'}
+              {lesson ? 'Les Bewerken' : 'Nieuwe Les'}
             </h3>
             <button
               onClick={onClose}
@@ -204,7 +137,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
             {/* Titel */}
             <div className="md:col-span-2">
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Course Titel *
+                Les Titel *
               </label>
               <input
                 type="text"
@@ -214,7 +147,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Bijv: Complete Security Awareness Training"
+                placeholder="Bijv: Phishing herkennen: 5 rode vlaggen"
               />
             </div>
 
@@ -231,7 +164,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Beschrijf de inhoud en doelstellingen van deze course..."
+                placeholder="Beschrijf de inhoud en doelstellingen van deze les..."
               />
             </div>
 
@@ -251,6 +184,26 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 <option value="">Selecteer een categorie</option>
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type */}
+            <div>
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                Type Les *
+              </label>
+              <select
+                id="type"
+                required
+                disabled={isSubmitting}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              >
+                <option value="">Selecteer type</option>
+                {lessonTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>
@@ -292,6 +245,24 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
               </select>
             </div>
 
+            {/* Duur */}
+            <div>
+              <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
+                Duur (minuten) *
+              </label>
+              <input
+                type="number"
+                id="duration"
+                required
+                min="1"
+                disabled={isSubmitting}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                value={formData.duration}
+                onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
+                placeholder="15"
+              />
+            </div>
+
             {/* Volgorde */}
             <div>
               <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-2">
@@ -307,6 +278,25 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 1 })}
               />
             </div>
+          </div>
+
+          {/* Les Content */}
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
+              Les Content
+            </label>
+            <textarea
+              id="content"
+              rows={6}
+              disabled={isSubmitting}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              placeholder="Voeg hier de volledige les content toe (tekst, HTML, markdown, etc.)..."
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Gebruik markdown of HTML voor opmaak van de les content
+            </p>
           </div>
 
           {/* Tags */}
@@ -353,126 +343,13 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
             </div>
           </div>
 
-          {/* Module Selectie Sectie */}
-          <div className="border-t border-gray-200 pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h4 className="text-lg font-medium text-gray-900">Modules in deze Course</h4>
-                <p className="text-sm text-gray-600">
-                  Selecteer bestaande modules om aan deze course toe te voegen
-                </p>
-              </div>
-              <div className="text-sm text-gray-600">
-                {formData.includedModules?.length || 0} van {availableModules.length} modules geselecteerd
-                {totalDuration > 0 && ` • ${totalDuration} minuten totaal`}
-                {totalLessons > 0 && ` • ${totalLessons} lessen totaal`}
-              </div>
-            </div>
-
-            {/* Module Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="moduleSearch" className="block text-sm font-medium text-gray-700 mb-2">
-                  Zoek modules
-                </label>
-                <input
-                  type="text"
-                  id="moduleSearch"
-                  disabled={isSubmitting}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  value={moduleSearch}
-                  onChange={(e) => setModuleSearch(e.target.value)}
-                  placeholder="Zoek op module titel..."
-                />
-              </div>
-              <div>
-                <label htmlFor="moduleCategory" className="block text-sm font-medium text-gray-700 mb-2">
-                  Filter op categorie
-                </label>
-                <select
-                  id="moduleCategory"
-                  disabled={isSubmitting}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  value={selectedModuleCategory}
-                  onChange={(e) => setSelectedModuleCategory(e.target.value)}
-                >
-                  <option value="">Alle categorieën</option>
-                  {Array.from(new Set(availableModules.map(m => m.category))).map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Modules Lijst */}
-            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.includedModules?.length === filteredModules.length && filteredModules.length > 0}
-                      onChange={selectAllModules}
-                      disabled={isSubmitting}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Selecteer alle gefilterde modules</span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {filteredModules.length} modules gevonden
-                  </span>
-                </div>
-              </div>
-
-              <div className="divide-y divide-gray-200">
-                {filteredModules.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    Geen modules gevonden met de huidige filters
-                  </div>
-                ) : (
-                  filteredModules.map(module => (
-                    <div key={module.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.includedModules?.includes(module.id) || false}
-                          onChange={() => toggleModuleSelection(module.id)}
-                          disabled={isSubmitting}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {module.title}
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                              module.status === 'Actief' ? 'bg-green-100 text-green-800' :
-                              module.status === 'Inactief' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {module.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{module.category}</span>
-                            <span>{module.duration} minuten</span>
-                            <span>{module.lessons} lessen</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Preview */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Voorbeeld:</h4>
             <div className="text-sm text-gray-600 space-y-1">
               <p><strong>Titel:</strong> {formData.title || 'Niet ingevuld'}</p>
               <p><strong>Categorie:</strong> {formData.category || 'Niet ingevuld'}</p>
+              <p><strong>Type:</strong> {formData.type || 'Niet ingevuld'}</p>
               <p><strong>Status:</strong> 
                 <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
                   formData.status === 'Actief' ? 'bg-green-100 text-green-800' :
@@ -482,9 +359,8 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                   {formData.status || 'Niet ingevuld'}
                 </span>
               </p>
-              <p><strong>Aantal modules:</strong> {formData.includedModules?.length || 0}</p>
-              {totalDuration > 0 && <p><strong>Totale duur:</strong> {totalDuration} minuten</p>}
-              {totalLessons > 0 && <p><strong>Totaal lessen:</strong> {totalLessons}</p>}
+              <p><strong>Duur:</strong> {formData.duration || 0} minuten</p>
+              <p><strong>Moeilijkheid:</strong> {formData.difficulty || 'Beginner'}</p>
             </div>
           </div>
 
@@ -509,7 +385,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               )}
-              <span>{isSubmitting ? 'Bezig...' : (course ? 'Bijwerken' : 'Course Aanmaken')}</span>
+              <span>{isSubmitting ? 'Bezig...' : (lesson ? 'Bijwerken' : 'Les Aanmaken')}</span>
             </button>
           </div>
         </form>

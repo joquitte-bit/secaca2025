@@ -122,7 +122,7 @@ export function SortableModule({
               </span>
               <span className="flex items-center space-x-1">
                 <Icons.document className="w-4 h-4" />
-                <span>{module.lessons} lessen</span>
+               <span>{module.lessons} lessen</span> {/* Deze wordt nu bijgewerkt */}
               </span>
               {module.duration && module.duration > 0 && (
                 <span className="flex items-center space-x-1">
