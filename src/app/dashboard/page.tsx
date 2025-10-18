@@ -30,14 +30,16 @@ export default async function DashboardPage() {
 
   // Render verschillende dashboards gebaseerd op role (gebruik strings i.p.v. enum)
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">
+    <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900">
           Welkom, {dbUser.name || dbUser.email}
         </h1>
-        <div className="text-sm text-gray-500">
-          <span className="font-medium">{dbUser.organization.name}</span>
-          <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+        <div className="flex items-center gap-4 mt-2">
+          <p className="text-gray-600">
+            {dbUser.organization.name}
+          </p>
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
             {dbUser.role}
           </span>
         </div>
@@ -65,7 +67,7 @@ async function AdminDashboard({ user }: { user: any }) {
   const [courseCount, userCount, moduleCount, lessonCount, enrollmentCount] = stats
 
   return (
-    <>
+    <div className="space-y-6">
       <div className="mb-6">
         <h2 className="text-lg font-medium text-gray-900">Admin Dashboard</h2>
         <p className="text-sm text-gray-500">Volledig overzicht van je organisatie</p>
@@ -83,7 +85,7 @@ async function AdminDashboard({ user }: { user: any }) {
         <RecentCourses orgId={user.orgId} />
         <RecentUsers orgId={user.orgId} />
       </div>
-    </>
+    </div>
   )
 }
 
@@ -98,7 +100,7 @@ async function ManagerDashboard({ user }: { user: any }) {
   const [learnerCount, enrollmentCount, publishedCourseCount] = teamStats
 
   return (
-    <>
+    <div className="space-y-6">
       <div className="mb-6">
         <h2 className="text-lg font-medium text-gray-900">Manager Dashboard</h2>
         <p className="text-sm text-gray-500">Overzicht van je team en hun voortgang</p>
@@ -120,7 +122,7 @@ async function ManagerDashboard({ user }: { user: any }) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -147,7 +149,7 @@ async function LearnerDashboard({ user }: { user: any }) {
     : 0
 
   return (
-    <>
+    <div className="space-y-6">
       <div className="mb-6">
         <h2 className="text-lg font-medium text-gray-900">Mijn Leerpad</h2>
         <p className="text-sm text-gray-500">Jouw persoonlijke voortgang en cursussen</p>
@@ -192,14 +194,14 @@ async function LearnerDashboard({ user }: { user: any }) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
 // OWNER DASHBOARD - Facturatie & organisatie
 async function OwnerDashboard({ user }: { user: any }) {
   return (
-    <>
+    <div className="space-y-6">
       <div className="mb-6">
         <h2 className="text-lg font-medium text-gray-900">Eigenaar Dashboard</h2>
         <p className="text-sm text-gray-500">Facturatie en organisatie beheer</p>
@@ -221,7 +223,7 @@ async function OwnerDashboard({ user }: { user: any }) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 

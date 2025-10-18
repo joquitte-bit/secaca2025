@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+  let response = NextResponse.next({
     request,
   })
 
@@ -16,29 +16,47 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options)
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request,
           })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Refresh session
+  const { data: { session }} = await supabase.auth.getSession()
 
-  // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Protected routes - alle dashboard routes inclusief courses
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!session) {
+      const loginUrl = new URL('/login', request.url)
+      // Voeg redirect parameter toe zodat gebruiker terug kan naar de bedoelde pagina
+      loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(loginUrl)
+    }
   }
 
-  // Redirect to dashboard if user is logged in and tries to access login
-  if (request.nextUrl.pathname === '/login' && user) {
+  // Als gebruiker al ingelogd is, redirect weg van login/register
+  if (session && (
+    request.nextUrl.pathname.startsWith('/login') || 
+    request.nextUrl.pathname.startsWith('/register')
+  )) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: [
+    // Match ALL paths under dashboard
+    '/dashboard/:path*',
+    '/login',
+    '/register',
+  ]
 }

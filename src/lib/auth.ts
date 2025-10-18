@@ -1,8 +1,9 @@
 // src/lib/auth.ts
-import { supabase } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export async function getUser() {
+  const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   
   if (error || !user) {
@@ -15,6 +16,7 @@ export async function getUser() {
 export async function signOut() {
   'use server'
   
+  const supabase = await createClient()
   const { error } = await supabase.auth.signOut()
   
   if (error) {

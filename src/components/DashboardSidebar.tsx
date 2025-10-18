@@ -12,6 +12,7 @@ const navSections = [
   { id: 'users', name: 'Gebruikers', icon: Icons.users },
   { id: 'analytics', name: 'Analytics', icon: Icons.analytics },
   { id: 'settings', name: 'Instellingen', icon: Icons.settings },
+  { id: 'courses', name: 'Courses', icon: Icons.modules }, // Voeg courses toe
 ] as const
 
 // Gebruik hetzelfde Section type als in DashboardNav
@@ -30,6 +31,16 @@ const sidebarSections: Record<Section, {
       { name: 'Snelle Statistieken', href: '/dashboard/quick-stats', icon: Icons.analytics },
       { name: 'Recente Activiteit', href: '/dashboard/activity', icon: Icons.check },
       { name: 'Voortgang', href: '/dashboard/progress', icon: Icons.analytics },
+    ]
+  },
+  courses: {
+    title: 'Courses',
+    icon: Icons.modules,
+    items: [
+      { name: 'Alle Courses', href: '/dashboard/courses', icon: Icons.modules },
+      { name: 'Nieuwe Course', href: '/dashboard/courses/new', icon: Icons.add },
+      { name: 'Categorieën', href: '/dashboard/courses/categories', icon: Icons.document },
+      { name: 'Volgorde', href: '/dashboard/courses/order', icon: Icons.settings },
     ]
   },
   modules: {
@@ -91,7 +102,10 @@ export function DashboardSidebar({
 }: DashboardSidebarProps = {}) {
   const pathname = usePathname()
 
-  const section = activeSection ? sidebarSections[activeSection] : sidebarSections.dashboard
+  // Voeg safe checking toe om undefined errors te voorkomen
+  const section = activeSection && sidebarSections[activeSection] 
+    ? sidebarSections[activeSection] 
+    : sidebarSections.dashboard
 
   return (
     <div className="fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-200 lg:static lg:h-[calc(100vh-4rem)] flex flex-col">
