@@ -113,9 +113,22 @@ export function DashboardNav({
               <span className="text-sm font-medium text-green-700">Pro Plan</span>
             </div>
             
-            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <Icons.notification className="w-5 h-5" />
-            </button>
+<button 
+  className="p-2 text-gray-400 hover:text-gray-600 transition-colors relative group"
+>
+  {/* ENVELOPE/POSTBUS ICON */}
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+    </path>
+  </svg>
+  
+  {/* TOOLTIP - ONDER DE ICON */}
+  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-white border border-gray-200 text-gray-800 text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+    Berichten (binnenkort beschikbaar)
+    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-white"></div>
+  </div>
+</button>
             
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600">

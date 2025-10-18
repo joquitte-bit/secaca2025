@@ -108,7 +108,7 @@ export function DashboardSidebar({
     : sidebarSections.dashboard
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-200 lg:static lg:h-[calc(100vh-4rem)] flex flex-col">
+    <div className="fixed top-16 left-0 z-50 w-56 bg-white border-r border-gray-200 h-[calc(100vh-4rem)] flex flex-col">
       {/* Header zonder toggle button */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-2 text-gray-900">

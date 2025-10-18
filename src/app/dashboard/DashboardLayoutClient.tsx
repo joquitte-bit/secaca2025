@@ -1,55 +1,61 @@
 // src/app/dashboard/DashboardLayoutClient.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { DashboardNav } from '@/components/DashboardNav'
 import { DashboardSidebar } from '@/components/DashboardSidebar'
 
-type Section = 'dashboard' | 'modules' | 'lessons' | 'users' | 'analytics' | 'settings' | 'courses'
+type Section = 'dashboard' | 'courses' | 'modules' | 'lessons' | 'users' | 'analytics' | 'settings'
 
 export default function DashboardLayoutClient({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [activeSection, setActiveSection] = useState<Section>('dashboard')
   const pathname = usePathname()
+  const [activeSection, setActiveSection] = useState<Section>('dashboard')
 
-  // Alleen de layout bepaalt de activeSection gebaseerd op pathname
-  useEffect(() => {
-    console.log('Pathname changed to:', pathname)
-    
-    if (pathname.startsWith('/dashboard/courses')) {
-      setActiveSection('courses')
-    } else if (pathname.startsWith('/dashboard/modules')) {
-      setActiveSection('modules')
-    } else if (pathname.startsWith('/dashboard/lessons')) {
-      setActiveSection('lessons')
-    } else if (pathname.startsWith('/dashboard/users')) {
-      setActiveSection('users')
-    } else if (pathname.startsWith('/dashboard/analytics')) {
-      setActiveSection('analytics')
-    } else if (pathname.startsWith('/dashboard/settings')) {
-      setActiveSection('settings')
-    } else if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
-      setActiveSection('dashboard')
-    }
-  }, [pathname])
+  // Bepaal active section based on pathname
+  const getActiveSection = (): Section => {
+    if (pathname.includes('/courses')) return 'courses'
+    if (pathname.includes('/modules')) return 'modules'
+    if (pathname.includes('/lessons')) return 'lessons'
+    if (pathname.includes('/users')) return 'users'
+    if (pathname.includes('/analytics')) return 'analytics'
+    if (pathname.includes('/settings')) return 'settings'
+    return 'dashboard'
+  }
+
+  const currentSection = getActiveSection()
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Fixed Navbar */}
       <DashboardNav 
-        activeSection={activeSection}
+        activeSection={currentSection}
         onSectionChange={setActiveSection}
       />
-      <div className="flex">
-        <DashboardSidebar activeSection={activeSection} />
-        <main className="flex-1 min-w-0">
-          <div className="px-4 sm:px-6 lg:px-8 py-6 w-full max-w-full">
+      
+      <div className="flex pt-16"> {/* pt-16 voor navbar hoogte */}
+        {/* Fixed Sidebar - onder navbar */}
+        <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] z-40">
+          <DashboardSidebar activeSection={currentSection} />
+        </div>
+        
+        {/* Main Content Area */}
+        <div className="ml-56 flex-1 flex flex-col min-h-[calc(100vh-4rem)]">
+          <main className="flex-1 p-6">
             {children}
-          </div>
-        </main>
+          </main>
+          
+          {/* Dashboard Footer - altijd onderaan */}
+          <footer className="bg-white border-t border-gray-200 h-12 flex items-center justify-center shrink-0">
+            <div className="text-center text-gray-500 text-sm">
+              SECACA Dashboard &copy; {new Date().getFullYear()}
+            </div>
+          </footer>
+        </div>
       </div>
     </div>
   )
