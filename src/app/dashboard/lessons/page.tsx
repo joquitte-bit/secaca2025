@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Icons } from '@/components/Icons'
-import { LessonModal } from '@/components/LessonModal'
+import LessonEditor from '@/components/LessonEditor'
 import { SortableLesson } from '@/components/SortableLesson'
 
 // Lesson interface
@@ -237,7 +237,10 @@ export default function LessonsPage() {
     if (lessonData.id && lessons.find(l => l.id === lessonData.id)) {
       // Update bestaande lesson
       setLessons(lessons.map(lesson => 
-        lesson.id === lessonData.id ? lessonData : lesson
+        lesson.id === lessonData.id ? {
+          ...lessonData,
+          updatedAt: new Date().toISOString().split('T')[0]
+        } : lesson
       ))
     } else {
       // Nieuwe lesson
@@ -247,7 +250,9 @@ export default function LessonsPage() {
         includedInModules: 0,
         includedInCourses: 0,
         completionRate: 0,
-        createdAt: new Date().toISOString().split('T')[0]
+        order: prev.length + 1,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
       }])
     }
     
@@ -536,7 +541,7 @@ export default function LessonsPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text.text-gray-600">Actieve Lessen</p>
+              <p className="text-sm font-medium text-gray-600">Actieve Lessen</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {lessons.filter(l => l.status === 'Actief').length}
               </p>
@@ -651,7 +656,7 @@ export default function LessonsPage() {
 
       {/* Modals */}
       {showCreateModal && (
-        <LessonModal 
+        <LessonEditor 
           lesson={null}
           categories={categories}
           lessonTypes={lessonTypes}
@@ -661,7 +666,7 @@ export default function LessonsPage() {
       )}
 
       {editingLesson && (
-        <LessonModal 
+        <LessonEditor 
           lesson={editingLesson}
           categories={categories}
           lessonTypes={lessonTypes}
