@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
 
 interface Lesson {
-  id?: number
+  id?: string  // Veranderd van number naar string
   title: string
   description: string
   status: 'Actief' | 'Inactief' | 'Concept'
@@ -44,6 +44,7 @@ export default function LessonEditor({ lesson, categories, lessonTypes, onClose,
   const [aiInput, setAiInput] = useState('')
   const [showAiImport, setShowAiImport] = useState(false)
   const [tagInput, setTagInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   // Initialize form with lesson data when editing
   useEffect(() => {
@@ -147,7 +148,7 @@ export default function LessonEditor({ lesson, categories, lessonTypes, onClose,
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Basic validation
@@ -156,10 +157,37 @@ export default function LessonEditor({ lesson, categories, lessonTypes, onClose,
       return
     }
 
-    onSave({
-      ...formData,
-      id: lesson?.id
-    })
+    setIsLoading(true)
+
+    try {
+      // Bereken order (simpele versie)
+      const order = lesson?.order || 1
+
+      // Zorg dat content een string is
+      let contentString = formData.content
+      if (typeof contentString === 'object') {
+        contentString = JSON.stringify(contentString)
+      }
+
+      const lessonData = {
+        ...formData,
+        content: contentString, // Zorg dat dit een string is
+        order: order,
+        duration: parseInt(formData.duration.toString()) || 0,
+      }
+
+      console.log('Saving lesson to database:', lessonData)
+
+      // Use the onSave callback instead of direct API call
+      // This allows the parent component to handle the API call and state update
+      onSave(lessonData)
+      
+    } catch (error: any) {
+      console.error('Save error:', error)
+      alert(`Fout bij opslaan les: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -179,6 +207,7 @@ export default function LessonEditor({ lesson, categories, lessonTypes, onClose,
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={isLoading}
             >
               <Icons.close className="w-6 h-6" />
             </button>
@@ -195,6 +224,7 @@ export default function LessonEditor({ lesson, categories, lessonTypes, onClose,
                   type="button"
                   onClick={() => setShowAiImport(!showAiImport)}
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  disabled={isLoading}
                 >
                   {showAiImport ? 'Verbergen' : 'Toon AI Import'}
                 </button>
@@ -226,15 +256,16 @@ Of gebruik JSON format:
 }"
                       rows={8}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      disabled={isLoading}
                     />
                   </div>
                   
                   <button
                     type="button"
                     onClick={handleAIImport}
-                    disabled={!aiInput.trim()}
+                    disabled={!aiInput.trim() || isLoading}
                     className={`w-full py-2 px-4 rounded-lg font-medium ${
-                      !aiInput.trim()
+                      !aiInput.trim() || isLoading
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
@@ -258,6 +289,7 @@ Of gebruik JSON format:
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Bijv: Phishing Herkennen - Basis"
                   required
+                  disabled={isLoading}
                 />
               </div>
 
@@ -270,6 +302,7 @@ Of gebruik JSON format:
                   onChange={(e) => handleInputChange('category', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
+                  disabled={isLoading}
                 >
                   <option value="">Selecteer categorie</option>
                   {categories.map(category => (
@@ -291,6 +324,7 @@ Of gebruik JSON format:
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Korte beschrijving van de les..."
                 required
+                disabled={isLoading}
               />
             </div>
 
@@ -305,6 +339,7 @@ Of gebruik JSON format:
                 rows={6}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Volledige les content, tekst, uitleg, etc..."
+                disabled={isLoading}
               />
             </div>
 
@@ -318,6 +353,7 @@ Of gebruik JSON format:
                   value={formData.type}
                   onChange={(e) => handleInputChange('type', e.target.value as any)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 >
                   {lessonTypes.map(type => (
                     <option key={type} value={type}>{type}</option>
@@ -333,6 +369,7 @@ Of gebruik JSON format:
                   value={formData.difficulty}
                   onChange={(e) => handleInputChange('difficulty', e.target.value as any)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 >
                   <option value="Beginner">Beginner</option>
                   <option value="Intermediate">Intermediate</option>
@@ -350,6 +387,7 @@ Of gebruik JSON format:
                   onChange={(e) => handleInputChange('duration', parseInt(e.target.value) || 0)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="0"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -361,6 +399,7 @@ Of gebruik JSON format:
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value as any)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 >
                   <option value="Concept">Concept</option>
                   <option value="Actief">Actief</option>
@@ -380,6 +419,7 @@ Of gebruik JSON format:
                 onChange={(e) => handleInputChange('videoUrl', e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="https://youtube.com/..."
+                disabled={isLoading}
               />
             </div>
 
@@ -399,6 +439,7 @@ Of gebruik JSON format:
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
                       className="ml-2 text-blue-600 hover:text-blue-800"
+                      disabled={isLoading}
                     >
                       ×
                     </button>
@@ -413,11 +454,13 @@ Of gebruik JSON format:
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Voeg tag toe..."
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  disabled={isLoading}
                 >
                   Toevoegen
                 </button>
@@ -432,14 +475,20 @@ Of gebruik JSON format:
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                disabled={isLoading}
               >
                 Annuleren
               </button>
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                disabled={isLoading}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  isLoading
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                {lesson ? 'Bijwerken' : 'Les Aanmaken'}
+                {isLoading ? 'Opslaan...' : (lesson ? 'Bijwerken' : 'Les Aanmaken')}
               </button>
             </div>
           </div>

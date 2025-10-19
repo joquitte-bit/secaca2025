@@ -1,7 +1,7 @@
-// src/app/dashboard/modules/page.tsx
+// 📁 BESTAND: /src/app/dashboard/modules/page.tsx
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -18,94 +18,108 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Icons } from '@/components/Icons'
-import { ModuleModal } from '@/components/ModuleModal'
+import { ModuleModal as ModuleEditor } from '@/components/ModuleModal'
 import { SortableModule } from '@/components/SortableModule'
 
-// Module interface
+// Module interface - CONSISTENTE VERSIE
 interface Module {
-  id: number
+  id: string
   title: string
+  description: string
   status: 'Actief' | 'Inactief' | 'Concept'
+  category: string
+  duration: number
+  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
+  order: number
+  tags?: string[]
   students: number
   progress: number
   lessons: number
-  description: string
-  category: string
-  order: number
   createdAt: string
   updatedAt: string
-  duration?: number
-  difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
-  tags?: string[]
 }
 
 export default function ModulesPage() {
-  const [modules, setModules] = useState<Module[]>([
-    { 
-      id: 1, 
-      title: 'Phishing Awareness', 
-      status: 'Actief', 
-      students: 45, 
-      progress: 85, 
-      lessons: 5,
-      description: 'Leer phishing aanvallen herkennen en voorkomen',
-      category: 'Security Basics',
-      order: 1,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-15',
-      duration: 60,
-      difficulty: 'Beginner',
-      tags: ['phishing', 'security', 'awareness']
-    },
-    { 
-      id: 2, 
-      title: 'Social Engineering', 
-      status: 'Actief', 
-      students: 38, 
-      progress: 72, 
-      lessons: 4,
-      description: 'Bescherm jezelf tegen sociale manipulatie',
-      category: 'Advanced Security',
-      order: 2,
-      createdAt: '2024-01-05',
-      updatedAt: '2024-01-14',
-      duration: 45,
-      difficulty: 'Intermediate',
-      tags: ['social engineering', 'manipulation']
-    },
-    { 
-      id: 3, 
-      title: 'Password Security', 
-      status: 'Inactief', 
-      students: 0, 
-      progress: 0, 
-      lessons: 3,
-      description: 'Creëer en beheer sterke wachtwoorden',
-      category: 'Security Basics',
-      order: 3,
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-10',
-      duration: 30,
-      difficulty: 'Beginner',
-      tags: ['passwords', 'security']
-    },
-    { 
-      id: 4, 
-      title: 'Data Protection', 
-      status: 'Actief', 
-      students: 52, 
-      progress: 90, 
-      lessons: 6,
-      description: 'Beveilig gevoelige bedrijfsdata',
-      category: 'Data Security',
-      order: 4,
-      createdAt: '2024-01-08',
-      updatedAt: '2024-01-15',
-      duration: 75,
-      difficulty: 'Intermediate',
-      tags: ['data protection', 'gdpr', 'compliance']
-    },
-  ])
+  const [modules, setModules] = useState<Module[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Haal modules op van de database
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const response = await fetch('/api/modules')
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch modules: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        console.log('📥 API Response data:', data)
+        
+        if (Array.isArray(data)) {
+          const transformedModules = data.map((module: any) => ({
+            id: module.id || '',
+            title: module.title || 'Untitled Module',
+            description: module.description || '',
+            status: module.status || 'Concept',
+            category: module.category || 'Uncategorized',
+            duration: module.duration || 0,
+            difficulty: module.difficulty || 'Beginner',
+            order: module.order || 0,
+            tags: Array.isArray(module.tags) 
+              ? module.tags 
+              : typeof module.tags === 'string' 
+                ? JSON.parse(module.tags || '[]')
+                : [],
+            students: module.students || 0,
+            progress: module.progress || 0,
+            lessons: module.lessons || (Array.isArray(module.includedLessons) ? module.includedLessons.length : 0) || 0,
+            createdAt: module.createdAt || new Date().toISOString().split('T')[0],
+            updatedAt: module.updatedAt || new Date().toISOString().split('T')[0]
+          }))
+          setModules(transformedModules)
+          console.log(`✅ Loaded ${transformedModules.length} modules directly from array`)
+        } else if (data.modules && Array.isArray(data.modules)) {
+          const transformedModules = data.modules.map((module: any) => ({
+            id: module.id || '',
+            title: module.title || 'Untitled Module',
+            description: module.description || '',
+            status: module.status || 'Concept',
+            category: module.category || 'Uncategorized',
+            duration: module.duration || 0,
+            difficulty: module.difficulty || 'Beginner',
+            order: module.order || 0,
+            tags: Array.isArray(module.tags) 
+              ? module.tags 
+              : typeof module.tags === 'string' 
+                ? JSON.parse(module.tags || '[]')
+                : [],
+            students: module.students || 0,
+            progress: module.progress || 0,
+            lessons: module.lessons || (Array.isArray(module.includedLessons) ? module.includedLessons.length : 0) || 0,
+            createdAt: module.createdAt || new Date().toISOString().split('T')[0],
+            updatedAt: module.updatedAt || new Date().toISOString().split('T')[0]
+          }))
+          setModules(transformedModules)
+          console.log(`✅ Loaded ${transformedModules.length} modules from data.modules`)
+        } else {
+          console.log('❌ No modules array found in response:', data)
+          setModules([])
+        }
+      } catch (error) {
+        console.error('Error fetching modules:', error)
+        setError('Failed to load modules. Please try again.')
+        setModules([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchModules()
+  }, [])
 
   const [categories] = useState([
     'Security Basics',
@@ -123,11 +137,11 @@ export default function ModulesPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('')
   const [selectedDifficulty, setSelectedDifficulty] = useState('')
-  const [sortBy, setSortBy] = useState<'title' | 'order' | 'progress' | 'students' | 'updatedAt'>('order')
+  const [sortBy, setSortBy] = useState<'title' | 'order' | 'duration' | 'updatedAt'>('order')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Bulk actions state
-  const [selectedModules, setSelectedModules] = useState<number[]>([])
+  const [selectedModules, setSelectedModules] = useState<string[]>([])
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -150,25 +164,36 @@ export default function ModulesPage() {
 
   // Filtered and sorted modules
   const filteredModules = useMemo(() => {
+    if (!modules || !Array.isArray(modules)) {
+      return []
+    }
+
     let filtered = modules.filter((module: Module) => {
-      const matchesSearch = module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          module.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (module.tags && module.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-      const matchesCategory = !selectedCategory || module.category === selectedCategory
-      const matchesStatus = !selectedStatus || module.status === selectedStatus
-      const matchesDifficulty = !selectedDifficulty || module.difficulty === selectedDifficulty
+      const title = module?.title || ''
+      const description = module?.description || ''
+      const tags = module?.tags || []
+      const category = module?.category || ''
+      const status = module?.status || 'Concept'
+      const difficulty = module?.difficulty || 'Beginner'
+
+      const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesCategory = !selectedCategory || category === selectedCategory
+      const matchesStatus = !selectedStatus || status === selectedStatus
+      const matchesDifficulty = !selectedDifficulty || difficulty === selectedDifficulty
       
       return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty
     })
 
     // Sorting
     filtered.sort((a: Module, b: Module) => {
-      let aValue: any = a[sortBy]
-      let bValue: any = b[sortBy]
+      let aValue: any = a[sortBy] || 0
+      let bValue: any = b[sortBy] || 0
       
       if (sortBy === 'updatedAt') {
-        aValue = new Date(aValue)
-        bValue = new Date(bValue)
+        aValue = new Date(aValue).getTime() || 0
+        bValue = new Date(bValue).getTime() || 0
       }
       
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
@@ -190,45 +215,192 @@ export default function ModulesPage() {
   }
 
   // Module actions
-  const handleDeleteModule = (moduleId: number) => {
+  const handleDeleteModule = async (moduleId: string) => {
+    if (!moduleId) {
+      console.error('❌ No module ID provided for deletion')
+      alert('Error: No module ID provided')
+      return
+    }
+
     if (confirm('Weet je zeker dat je deze module wilt verwijderen?')) {
-      setModules(modules.filter(module => module.id !== moduleId))
+      try {
+        console.log(`🗑️ Attempting to delete module: ${moduleId}`)
+        
+        const response = await fetch(`/api/modules/${moduleId}`, {
+          method: 'DELETE',
+        })
+
+        console.log(`📨 Delete response status: ${response.status}`)
+
+        if (response.ok) {
+          console.log(`✅ Successfully deleted module: ${moduleId}`)
+          setModules(modules.filter(module => module.id !== moduleId))
+          setSelectedModules(prev => prev.filter(id => id !== moduleId))
+        } else {
+          const errorText = await response.text()
+          console.error(`❌ Failed to delete module: ${response.status} - ${errorText}`)
+          alert(`Failed to delete module: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('💥 Error deleting module:', error)
+        alert('Error deleting module. Check console for details.')
+      }
     }
   }
 
-  const handleToggleStatus = (moduleId: number) => {
-    setModules(modules.map(module => 
-      module.id === moduleId 
-        ? { 
-            ...module, 
-            status: module.status === 'Actief' ? 'Inactief' : 'Actief',
-            updatedAt: new Date().toISOString().split('T')[0]
-          } 
-        : module
-    ))
+  const handleToggleStatus = async (moduleId: string) => {
+    if (!moduleId) {
+      console.error('❌ No module ID provided for status toggle')
+      return
+    }
+
+    const module = modules.find(m => m.id === moduleId)
+    if (!module) {
+      console.error(`❌ Module not found: ${moduleId}`)
+      return
+    }
+
+    const newStatus = module.status === 'Actief' ? 'Inactief' : 'Actief'
+    console.log(`🔄 Toggling status for module ${moduleId} from ${module.status} to ${newStatus}`)
+    
+    try {
+      const response = await fetch(`/api/modules/${moduleId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      console.log(`📨 Status update response: ${response.status}`)
+
+      if (response.ok) {
+        console.log(`✅ Successfully updated status for module: ${moduleId}`)
+        setModules(modules.map(module => 
+          module.id === moduleId 
+            ? { 
+                ...module, 
+                status: newStatus,
+                updatedAt: new Date().toISOString()
+              } 
+            : module
+        ))
+      } else {
+        const errorText = await response.text()
+        console.error(`❌ Failed to update module status: ${response.status} - ${errorText}`)
+        alert(`Failed to update module status: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('💥 Error updating module status:', error)
+      alert('Error updating module status. Check console for details.')
+    }
   }
 
-  const handleSaveModule = (moduleData: any) => {
-    if (moduleData.id && modules.find(m => m.id === moduleData.id)) {
-      // Update bestaande module
-      setModules(modules.map(module => 
-        module.id === moduleData.id ? moduleData : module
-      ))
-    } else {
-      // Nieuwe module
-      setModules(prev => [...prev, {
-        ...moduleData,
-        id: Date.now(),
-        students: 0,
-        progress: 0,
-        lessons: 0,
-        createdAt: new Date().toISOString().split('T')[0]
-      }])
+  const handleSaveModule = async (moduleData: any) => {
+    try {
+      console.log('💾 Saving module data:', moduleData)
+
+      // Bereid de data voor voor de API - gebruik de data van ModuleModal
+      const payload = {
+        title: moduleData.title,
+        description: moduleData.description,
+        category: moduleData.category,
+        status: moduleData.status,
+        order: moduleData.order || 1,
+        duration: moduleData.duration || 0,
+        difficulty: moduleData.difficulty || 'Beginner',
+        tags: moduleData.tags || [],
+        lessonIds: moduleData.includedLessons || [],
+        courseId: moduleData.courseId
+      }
+
+      console.log('🎯 Final payload to API:', payload)
+
+      let response
+      let url = '/api/modules'
+      let method = 'POST'
+
+      // Check of we een bestaande module updaten
+      if (moduleData.id) {
+        url = `/api/modules/${moduleData.id}`
+        method = 'PUT' // Gebruik PUT voor updates
+        console.log(`🔄 Updating existing module: ${moduleData.id}`)
+      } else {
+        console.log('🆕 Creating new module')
+      }
+
+      response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      console.log('📨 API Response status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      const savedModule = await response.json()
+      console.log('✅ Module saved successfully:', savedModule)
+
+      // Update de state direct in plaats van te refreshen
+      if (moduleData.id) {
+        // Update bestaande module
+        setModules(prev => prev.map(module => 
+          module.id === moduleData.id 
+            ? {
+                ...module,
+                title: moduleData.title,
+                description: moduleData.description,
+                category: moduleData.category,
+                status: moduleData.status,
+                duration: moduleData.duration || 0,
+                difficulty: moduleData.difficulty || 'Beginner',
+                order: moduleData.order || 1,
+                tags: moduleData.tags || [],
+                lessons: moduleData.includedLessons?.length || 0,
+                updatedAt: new Date().toISOString()
+              }
+            : module
+        ))
+      } else {
+        // Voeg nieuwe module toe
+        const newModule: Module = {
+          id: savedModule.id || Date.now().toString(),
+          title: moduleData.title,
+          description: moduleData.description,
+          status: moduleData.status,
+          category: moduleData.category,
+          duration: moduleData.duration || 0,
+          difficulty: moduleData.difficulty || 'Beginner',
+          order: moduleData.order || 1,
+          tags: moduleData.tags || [],
+          students: 0,
+          progress: 0,
+          lessons: moduleData.includedLessons?.length || 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        setModules(prev => [...prev, newModule])
+      }
+      
+      // Close modals
+      setShowCreateModal(false)
+      setEditingModule(null)
+      alert('Module succesvol opgeslagen!')
+      
+    } catch (error) {
+      console.error('💥 Error saving module:', error)
+      alert(`Error saving module: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   // Bulk action handlers
-  const toggleModuleSelection = (moduleId: number) => {
+  const toggleModuleSelection = (moduleId: string) => {
     setSelectedModules(prev =>
       prev.includes(moduleId)
         ? prev.filter(id => id !== moduleId)
@@ -238,25 +410,80 @@ export default function ModulesPage() {
 
   const selectAllModules = () => {
     setSelectedModules(
-      selectedModules.length === filteredModules.length
+      selectedModules.length === filteredModules.length && filteredModules.length > 0
         ? []
         : filteredModules.map((module: Module) => module.id)
     )
   }
 
-  const handleBulkStatusChange = (newStatus: 'Actief' | 'Inactief') => {
-    setModules(modules.map(module =>
-      selectedModules.includes(module.id)
-        ? { ...module, status: newStatus, updatedAt: new Date().toISOString().split('T')[0] }
-        : module
-    ))
-    setSelectedModules([])
+  const handleBulkStatusChange = async (newStatus: 'Actief' | 'Inactief') => {
+    if (selectedModules.length === 0) return
+
+    try {
+      console.log(`🔄 Bulk updating ${selectedModules.length} modules to status: ${newStatus}`)
+      
+      const response = await fetch('/api/modules/bulk', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          moduleIds: selectedModules,
+          status: newStatus
+        }),
+      })
+
+      console.log(`📨 Bulk update response: ${response.status}`)
+
+      if (response.ok) {
+        console.log(`✅ Successfully bulk updated ${selectedModules.length} modules`)
+        setModules(modules.map(module =>
+          selectedModules.includes(module.id)
+            ? { ...module, status: newStatus, updatedAt: new Date().toISOString() }
+            : module
+        ))
+        setSelectedModules([])
+      } else {
+        const errorText = await response.text()
+        console.error(`❌ Failed to bulk update modules: ${response.status} - ${errorText}`)
+        alert(`Failed to update modules: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('💥 Error updating modules:', error)
+      alert('Error updating modules. Check console for details.')
+    }
   }
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
+    if (selectedModules.length === 0) return
+
     if (confirm(`Weet je zeker dat je ${selectedModules.length} modules wilt verwijderen?`)) {
-      setModules(modules.filter(module => !selectedModules.includes(module.id)))
-      setSelectedModules([])
+      try {
+        console.log(`🗑️ Attempting bulk delete of ${selectedModules.length} modules`)
+        
+        const response = await fetch('/api/modules/bulk', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ moduleIds: selectedModules }),
+        })
+
+        console.log(`📨 Bulk delete response: ${response.status}`)
+
+        if (response.ok) {
+          console.log(`✅ Successfully bulk deleted ${selectedModules.length} modules`)
+          setModules(modules.filter(module => !selectedModules.includes(module.id)))
+          setSelectedModules([])
+        } else {
+          const errorText = await response.text()
+          console.error(`❌ Failed to bulk delete modules: ${response.status} - ${errorText}`)
+          alert(`Failed to delete modules: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('💥 Error deleting modules:', error)
+        alert('Error deleting modules. Check console for details.')
+      }
     }
   }
 
@@ -269,24 +496,92 @@ export default function ModulesPage() {
   )
 
   // Handle drag end
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      setModules((currentModules) => {
-        const oldIndex = currentModules.findIndex((module) => module.id === active.id)
-        const newIndex = currentModules.findIndex((module) => module.id === over.id)
+      const oldIndex = modules.findIndex((module) => module.id === active.id)
+      const newIndex = modules.findIndex((module) => module.id === over.id)
 
-        const reorderedModules = arrayMove(currentModules, oldIndex, newIndex)
-        
-        // Update order numbers based on new positions
-        return reorderedModules.map((module, index) => ({
-          ...module,
-          order: index + 1,
-          updatedAt: new Date().toISOString().split('T')[0]
-        }))
-      })
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reorderedModules = arrayMove(modules, oldIndex, newIndex)
+      
+      const updatedModules = reorderedModules.map((module, index) => ({
+        ...module,
+        order: index + 1,
+        updatedAt: new Date().toISOString()
+      }))
+
+      setModules(updatedModules)
+
+      try {
+        const response = await fetch('/api/modules/reorder', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            modules: updatedModules.map(module => ({
+              id: module.id,
+              order: module.order
+            }))
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Failed to update module order')
+        }
+      } catch (error) {
+        console.error('Error updating module order:', error)
+      }
     }
+  }
+
+  // Calculate statistics safely
+  const totalModules = modules.length
+  const activeModules = modules.filter(m => m.status === 'Actief').length
+  const totalDuration = modules.reduce((acc, module) => acc + (module.duration || 0), 0)
+  const totalLessons = modules.reduce((acc, module) => {
+    const lessons = module.lessons;
+    if (typeof lessons === 'number') {
+      return acc + lessons;
+    } else {
+      return acc + 0;
+    }
+  }, 0)
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600">
+            <Icons.loading />
+          </div>
+          <p className="text-gray-600">Modules laden...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 text-red-500 mx-auto mb-4">
+            <Icons.close />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -295,13 +590,15 @@ export default function ModulesPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Modules Beheer</h1>
-            <p className="text-gray-600 mt-1">Beheer alle training modules en cursussen</p>
+            <p className="text-gray-600 mt-1">Beheer alle training modules</p>
           </div>
           <button 
             onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
           >
-            <Icons.add className="w-4 h-4" />
+            <div className="w-4 h-4">
+              <Icons.add />
+            </div>
             <span>Nieuwe Module</span>
           </button>
         </div>
@@ -324,7 +621,9 @@ export default function ModulesPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Icons.document className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <div className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Icons.document />
+              </div>
             </div>
           </div>
 
@@ -398,8 +697,7 @@ export default function ModulesPage() {
               >
                 <option value="order">Volgorde</option>
                 <option value="title">Titel</option>
-                <option value="progress">Voortgang</option>
-                <option value="students">Studenten</option>
+                <option value="duration">Duur</option>
                 <option value="updatedAt">Laatst bijgewerkt</option>
               </select>
             </div>
@@ -480,9 +778,11 @@ export default function ModulesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Totaal Modules</p>
-              <p className="text-2xl font-semibold text-gray-900">{modules.length}</p>
+              <p className="text-2xl font-semibold text-gray-900">{totalModules}</p>
             </div>
-            <Icons.modules className="w-8 h-8 text-blue-600" />
+            <div className="w-8 h-8 text-blue-600">
+              <Icons.modules />
+            </div>
           </div>
         </div>
         
@@ -490,11 +790,11 @@ export default function ModulesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Actieve Modules</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {modules.filter(m => m.status === 'Actief').length}
-              </p>
+              <p className="text-2xl font-semibold text-gray-900">{activeModules}</p>
             </div>
-            <Icons.check className="w-8 h-8 text-green-600" />
+            <div className="w-8 h-8 text-green-600">
+              <Icons.check />
+            </div>
           </div>
         </div>
         
@@ -502,23 +802,23 @@ export default function ModulesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Totaal Lessen</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {modules.reduce((acc, module) => acc + module.lessons, 0)}
-              </p>
+              <p className="text-2xl font-semibold text-gray-900">{totalLessons}</p>
             </div>
-            <Icons.document className="w-8 h-8 text-purple-600" />
+            <div className="w-8 h-8 text-purple-600">
+              <Icons.lessons />
+            </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {Math.round(modules.reduce((acc, module) => acc + module.progress, 0) / modules.length)}%
-              </p>
+              <p className="text-sm font-medium text-gray-600">Totale Duur</p>
+              <p className="text-2xl font-semibold text-gray-900">{totalDuration} min</p>
             </div>
-            <Icons.chart className="w-8 h-8 text-orange-600" />
+            <div className="w-8 h-8 text-orange-600">
+              <Icons.clock />
+            </div>
           </div>
         </div>
       </div>
@@ -565,10 +865,12 @@ export default function ModulesPage() {
             <div className="divide-y divide-gray-200">
               {filteredModules.length === 0 ? (
                 <div className="px-6 py-12 text-center">
-                  <Icons.document className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="w-12 h-12 text-gray-400 mx-auto mb-4">
+                    <Icons.document />
+                  </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Geen modules gevonden</h3>
                   <p className="text-gray-600 mb-4">
-                    {searchTerm || selectedCategory || selectedStatus || selectedDifficulty 
+                    {searchTerm || selectedCategory || selectedStatus || selectedDifficulty
                       ? 'Probeer je zoekcriteria aan te passen.' 
                       : 'Er zijn nog geen modules aangemaakt.'}
                   </p>
@@ -588,7 +890,7 @@ export default function ModulesPage() {
                     module={module}
                     isSelected={selectedModules.includes(module.id)}
                     onToggleSelection={toggleModuleSelection}
-                    onEdit={setEditingModule}
+                    onEdit={(module) => setEditingModule(module)}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDeleteModule}
                     getStatusColor={getStatusColor}
@@ -603,7 +905,7 @@ export default function ModulesPage() {
 
       {/* Modals */}
       {showCreateModal && (
-        <ModuleModal 
+        <ModuleEditor 
           module={null}
           categories={categories}
           onClose={() => setShowCreateModal(false)}
@@ -612,7 +914,7 @@ export default function ModulesPage() {
       )}
 
       {editingModule && (
-        <ModuleModal 
+        <ModuleEditor 
           module={editingModule}
           categories={categories}
           onClose={() => setEditingModule(null)}

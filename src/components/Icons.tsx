@@ -194,6 +194,16 @@ export const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
     </svg>
   ),
+  loading: (props: any) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4m8-10h-4M8 12H4m13.657-5.657l-2.828 2.828m-9.9 9.9l-2.828 2.828" />
+  </svg>
+),
+grip: (props: SVGProps<SVGSVGElement>) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9h8m-8 4h8m-8 4h8" />
+  </svg>
+),
 }
 
 

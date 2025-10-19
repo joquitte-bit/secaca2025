@@ -5,20 +5,21 @@ import { useState, useEffect } from 'react'
 import { Icons } from './Icons'
 
 interface Lesson {
-  id: number
+  id: string
   title: string
-  duration: number
+  durationMinutes: number
   category: string
-  status: 'Actief' | 'Inactief' | 'Concept'
+  status: string
+  description?: string
 }
 
 interface Module {
-  id: number
+  id: string
   title: string
-  status: 'Actief' | 'Inactief' | 'Concept'
+  status: string
   students: number
   progress: number
-  lessons: number
+  lessons: number // Consistent met page.tsx
   description: string
   category: string
   order: number
@@ -27,7 +28,7 @@ interface Module {
   duration?: number
   difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
   tags?: string[]
-  includedLessons?: number[] // Lesson IDs die bij deze module horen
+  includedLessons?: string[]
 }
 
 interface ModuleModalProps {
@@ -37,35 +38,96 @@ interface ModuleModalProps {
   categories: string[]
 }
 
-// Mock lessons data - in een echte app komt dit uit de database
-const availableLessons: Lesson[] = [
-  { id: 1, title: 'Phishing herkennen: 5 rode vlaggen', duration: 15, category: 'Security Basics', status: 'Actief' },
-  { id: 2, title: 'Veilige links controleren', duration: 10, category: 'Security Basics', status: 'Actief' },
-  { id: 3, title: 'Rapporteren van phishing', duration: 8, category: 'Security Basics', status: 'Actief' },
-  { id: 4, title: 'CEO-fraude herkennen', duration: 12, category: 'Advanced Security', status: 'Actief' },
-  { id: 5, title: 'Social engineering technieken', duration: 20, category: 'Advanced Security', status: 'Concept' },
-  { id: 6, title: 'Wachtwoord beveiliging', duration: 15, category: 'Security Basics', status: 'Actief' },
-  { id: 7, title: 'Two-factor authenticatie', duration: 10, category: 'Technical Security', status: 'Actief' },
-  { id: 8, title: 'Data classificatie', duration: 18, category: 'Data Security', status: 'Actief' },
-]
-
 export function ModuleModal({ module, onClose, onSave, categories }: ModuleModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: '',
-    status: 'Concept' as 'Actief' | 'Inactief' | 'Concept',
+    status: 'DRAFT' as string,
     duration: 0,
     difficulty: 'Beginner' as 'Beginner' | 'Intermediate' | 'Expert',
     tags: [] as string[],
     order: 0,
-    includedLessons: [] as number[] // NIEUW: geselecteerde lesson IDs
+    includedLessons: [] as string[]
   })
 
+  const [availableLessons, setAvailableLessons] = useState<Lesson[]>([])
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const [newTag, setNewTag] = useState('')
   const [lessonSearch, setLessonSearch] = useState('')
   const [selectedLessonCategory, setSelectedLessonCategory] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false) // NIEUW: prevent multiple submissions
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [lessonsLoading, setLessonsLoading] = useState(true)
+  const [coursesLoading, setCoursesLoading] = useState(true)
+  const [selectedCourseId, setSelectedCourseId] = useState('')
+
+  // Fetch lessons from database
+  useEffect(() => {
+    const fetchLessons = async () => {
+      try {
+        setLessonsLoading(true)
+        console.log('🔍 Fetching lessons from API...')
+        
+        const response = await fetch('/api/lessons')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch lessons')
+        }
+        
+        const lessons = await response.json()
+        console.log('📚 Lessons fetched:', lessons.length, lessons)
+        
+        const transformedLessons: Lesson[] = lessons.map((lesson: any) => ({
+          id: lesson.id,
+          title: lesson.title,
+          durationMinutes: lesson.durationMinutes || 0,
+          category: lesson.category || 'Uncategorized',
+          status: lesson.status === 'PUBLISHED' ? 'Actief' : 'Concept',
+          description: lesson.description
+        }))
+        
+        setAvailableLessons(transformedLessons)
+      } catch (error) {
+        console.error('Error fetching lessons:', error)
+      } finally {
+        setLessonsLoading(false)
+      }
+    }
+
+    fetchLessons()
+  }, [])
+
+  // Fetch available courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true)
+        console.log('🔍 Fetching courses from API...')
+        
+        const response = await fetch('/api/courses')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch courses')
+        }
+        
+        const courses = await response.json()
+        console.log('📚 Courses fetched:', courses.length, courses)
+        
+        setAvailableCourses(courses)
+        
+        // Select first course by default
+        if (courses.length > 0 && !selectedCourseId) {
+          setSelectedCourseId(courses[0].id)
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error)
+      } finally {
+        setCoursesLoading(false)
+      }
+    }
+
+    fetchCourses()
+  }, [])
 
   useEffect(() => {
     if (module) {
@@ -78,8 +140,15 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
         difficulty: module.difficulty || 'Beginner',
         tags: module.tags || [],
         order: module.order,
-        includedLessons: module.includedLessons || [] // NIEUW
+        includedLessons: module.includedLessons || []
       })
+      
+      // Als het een bestaande module is, gebruik de courseId van de module
+      if (module.id) {
+        // Je zou hier de courseId van de module moeten ophalen
+        // Voor nu gebruiken we de eerste beschikbare course
+        setSelectedCourseId(availableCourses[0]?.id || '')
+      }
     } else {
       // Nieuwe module - bepaal volgende order nummer
       setFormData(prev => ({
@@ -87,38 +156,93 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
         order: categories.length > 0 ? categories.length + 1 : 1
       }))
     }
-  }, [module, categories])
+  }, [module, categories, availableCourses])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // NIEUW: Prevent multiple submissions
     if (isSubmitting) return
     setIsSubmitting(true)
 
     try {
-      // Bereken totale duur op basis van geselecteerde lessons
+      // Valideer vereiste velden
+      if (!formData.title.trim()) {
+        throw new Error('Titel is verplicht')
+      }
+      
+      if (!formData.description.trim()) {
+        throw new Error('Beschrijving is verplicht')
+      }
+      
+      if (!formData.category) {
+        throw new Error('Categorie is verplicht')
+      }
+      
+      if (!selectedCourseId) {
+        throw new Error('Selecteer een cursus voor deze module')
+      }
+
+      // Bereken totale duur op basis van geselecteerde lessen
       const selectedLessons = availableLessons.filter(lesson => 
         formData.includedLessons.includes(lesson.id)
       )
-      const totalDuration = selectedLessons.reduce((total, lesson) => total + lesson.duration, 0)
-      
+      const totalDuration = selectedLessons.reduce((total, lesson) => 
+        total + lesson.durationMinutes, 0
+      )
+
+      // Prepare data for API
       const moduleData = {
         ...formData,
-        id: module?.id || Date.now(),
-        students: module?.students || 0,
-        progress: module?.progress || 0,
-        lessons: formData.includedLessons.length, // NIEUW: aantal lessons
-        duration: totalDuration || formData.duration, // NIEUW: automatische duur
-        createdAt: module?.createdAt || new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
+        duration: totalDuration,
+        courseId: selectedCourseId,
+        // Zorg dat de module ID wordt meegestuurd voor updates
+        ...(module?.id && { id: module.id })
       }
 
-      await onSave(moduleData)
-      // NIEUW: Modal sluit nu automatisch na succesvol opslaan
+      console.log('💾 Saving module data:', moduleData)
+
+      // Save to database via API
+      const url = module ? `/api/modules/${module.id}` : '/api/modules'
+      const method = module ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(moduleData),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Failed to save module: ${errorText}`)
+      }
+
+      const savedModule = await response.json()
+      console.log('✅ Module saved to database:', savedModule)
+
+      // Call the parent onSave with the complete module data
+      await onSave({
+        ...moduleData,
+        id: savedModule.id || module?.id,
+        students: module?.students || 0,
+        progress: module?.progress || 0,
+        lessons: formData.includedLessons.length,
+        createdAt: module?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
       onClose()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving module:', error)
+      let errorMessage = 'Er is een fout opgetreden bij het opslaan van de module'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      }
+      
+      alert(`${errorMessage}. Check de console voor details.`)
     } finally {
       setIsSubmitting(false)
     }
@@ -148,8 +272,8 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
     }
   }
 
-  // NIEUW: Lesson selection handlers
-  const toggleLessonSelection = (lessonId: number) => {
+  // Lesson selection handlers
+  const toggleLessonSelection = (lessonId: string) => {
     setFormData(prev => ({
       ...prev,
       includedLessons: prev.includedLessons.includes(lessonId)
@@ -171,7 +295,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
     }))
   }
 
-  // NIEUW: Filter lessons voor weergave
+  // Filter lessons voor weergave
   const getFilteredLessons = () => {
     return availableLessons.filter(lesson => {
       const matchesSearch = lesson.title.toLowerCase().includes(lessonSearch.toLowerCase())
@@ -182,7 +306,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
 
   const filteredLessons = getFilteredLessons()
   const selectedLessons = availableLessons.filter(lesson => formData.includedLessons.includes(lesson.id))
-  const totalDuration = selectedLessons.reduce((total, lesson) => total + lesson.duration, 0)
+  const totalDuration = selectedLessons.reduce((total, lesson) => total + lesson.durationMinutes, 0)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -205,6 +329,31 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basis Informatie */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Cursus Selectie */}
+            <div className="md:col-span-2">
+              <label htmlFor="course" className="block text-sm font-medium text-gray-700 mb-2">
+                Cursus *
+              </label>
+              <select
+                id="course"
+                required
+                disabled={isSubmitting || coursesLoading}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                value={selectedCourseId}
+                onChange={(e) => setSelectedCourseId(e.target.value)}
+              >
+                <option value="">Selecteer een cursus</option>
+                {availableCourses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+              {coursesLoading && (
+                <p className="text-sm text-gray-500 mt-1">Cursussen laden...</p>
+              )}
+            </div>
+
             {/* Titel */}
             <div className="md:col-span-2">
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,11 +419,11 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                 disabled={isSubmitting}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
               >
-                <option value="Concept">Concept</option>
-                <option value="Actief">Actief</option>
-                <option value="Inactief">Inactief</option>
+                <option value="DRAFT">Concept</option>
+                <option value="PUBLISHED">Actief</option>
+                <option value="ARCHIVED">Inactief</option>
               </select>
             </div>
 
@@ -357,7 +506,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
             </div>
           </div>
 
-          {/* NIEUW: Lesson Selectie Sectie */}
+          {/* Lesson Selectie Sectie */}
           <div className="border-t border-gray-200 pt-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -367,8 +516,14 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                 </p>
               </div>
               <div className="text-sm text-gray-600">
-                {formData.includedLessons.length} van {availableLessons.length} lessen geselecteerd
-                {totalDuration > 0 && ` • ${totalDuration} minuten totaal`}
+                {lessonsLoading ? (
+                  'Lessen laden...'
+                ) : (
+                  <>
+                    {formData.includedLessons.length} van {availableLessons.length} lessen geselecteerd
+                    {totalDuration > 0 && ` • ${totalDuration} minuten totaal`}
+                  </>
+                )}
               </div>
             </div>
 
@@ -381,7 +536,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                 <input
                   type="text"
                   id="lessonSearch"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || lessonsLoading}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   value={lessonSearch}
                   onChange={(e) => setLessonSearch(e.target.value)}
@@ -394,7 +549,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                 </label>
                 <select
                   id="lessonCategory"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || lessonsLoading}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   value={selectedLessonCategory}
                   onChange={(e) => setSelectedLessonCategory(e.target.value)}
@@ -416,19 +571,23 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                       type="checkbox"
                       checked={formData.includedLessons.length === filteredLessons.length && filteredLessons.length > 0}
                       onChange={selectAllLessons}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || lessonsLoading}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="text-sm font-medium text-gray-700">Selecteer alle gefilterde lessen</span>
                   </div>
                   <span className="text-sm text-gray-500">
-                    {filteredLessons.length} lessen gevonden
+                    {lessonsLoading ? 'Laden...' : `${filteredLessons.length} lessen gevonden`}
                   </span>
                 </div>
               </div>
 
               <div className="divide-y divide-gray-200">
-                {filteredLessons.length === 0 ? (
+                {lessonsLoading ? (
+                  <div className="px-4 py-8 text-center text-gray-500">
+                    Lessen laden...
+                  </div>
+                ) : filteredLessons.length === 0 ? (
                   <div className="px-4 py-8 text-center text-gray-500">
                     Geen lessen gevonden met de huidige filters
                   </div>
@@ -450,7 +609,6 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                             </span>
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
                               lesson.status === 'Actief' ? 'bg-green-100 text-green-800' :
-                              lesson.status === 'Inactief' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
                               {lesson.status}
@@ -458,7 +616,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
                           </div>
                           <div className="flex items-center space-x-4 text-xs text-gray-500">
                             <span>{lesson.category}</span>
-                            <span>{lesson.duration} minuten</span>
+                            <span>{lesson.durationMinutes} minuten</span>
                           </div>
                         </div>
                       </div>
@@ -477,11 +635,12 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
               <p><strong>Categorie:</strong> {formData.category || 'Niet ingevuld'}</p>
               <p><strong>Status:</strong> 
                 <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                  formData.status === 'Actief' ? 'bg-green-100 text-green-800' :
-                  formData.status === 'Inactief' ? 'bg-red-100 text-red-800' :
+                  formData.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
+                  formData.status === 'ARCHIVED' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {formData.status || 'Niet ingevuld'}
+                  {formData.status === 'PUBLISHED' ? 'Actief' : 
+                   formData.status === 'ARCHIVED' ? 'Inactief' : 'Concept'}
                 </span>
               </p>
               <p><strong>Aantal lessen:</strong> {formData.includedLessons.length}</p>
@@ -501,7 +660,7 @@ export function ModuleModal({ module, onClose, onSave, categories }: ModuleModal
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !selectedCourseId}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSubmitting && (

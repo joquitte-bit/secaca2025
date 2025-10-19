@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, LessonType, UserRole, CourseStatus } from '@prisma/client'
+import { PrismaClient, LessonType, UserRole, CourseStatus, LessonStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -83,66 +83,88 @@ async function main() {
     console.log('✅ Subscription created')
 
     // 4. Maak courses volgens je specificatie
-    const cybersecurityCourse = await prisma.course.create({
-      data: {
-        title: 'Basis Cybersecurity voor Medewerkers (NIS2-ready)',
-        slug: 'basis-cybersecurity',
-        description: 'Leer de basisprincipes van cybersecurity en bescherm je organisatie tegen digitale dreigingen',
-        summary: 'Complete basis training voor cybersecurity awareness',
-        level: 'beginner',
-        tags: JSON.stringify(['NIS2', 'AVG', 'Wachtwoorden', 'Phishing', 'Data']),
-        status: CourseStatus.PUBLISHED,
-        orgId: org.id,
-        modules: {
-          create: [
-            {
-              title: 'Wachtwoorden & MFA',
-              order: 1,
-              lessons: {
-                create: [
-                  {
-                    title: 'Introductie Wachtwoordbeveiliging',
-                    type: LessonType.TEXT,
-                    content: JSON.stringify({ text: 'Leer waarom sterke wachtwoorden belangrijk zijn en hoe je ze maakt...' }),
-                    order: 1,
-                    durationMinutes: 10
-                  },
-                  {
-                    title: 'Video: MFA Uitleg',
-                    type: LessonType.VIDEO,
-                    content: JSON.stringify({ videoUrl: 'https://example.com/video/mfa-uitleg' }),
-                    order: 2,
-                    durationMinutes: 5
-                  },
-                  {
-                    title: 'Quiz: Wachtwoord Kennis',
-                    type: LessonType.QUIZ,
-                    content: JSON.stringify({ description: 'Test je kennis over wachtwoordbeveiliging' }),
-                    order: 3,
-                    durationMinutes: 15
-                  }
-                ]
+// Vervang alle lesson creaties met de juiste enum waarden:
+
+const cybersecurityCourse = await prisma.course.create({
+  data: {
+    title: 'Basis Cybersecurity voor Medewerkers (NIS2-ready)',
+    slug: 'basis-cybersecurity',
+    description: 'Leer de basisprincipes van cybersecurity en bescherm je organisatie tegen digitale dreigingen',
+    summary: 'Complete basis training voor cybersecurity awareness',
+    level: 'beginner',
+    tags: JSON.stringify(['NIS2', 'AVG', 'Wachtwoorden', 'Phishing', 'Data']),
+    status: CourseStatus.PUBLISHED,
+    orgId: org.id,
+    modules: {
+      create: [
+        {
+          title: 'Wachtwoorden & MFA',
+          order: 1,
+          lessons: {
+            create: [
+              {
+                title: 'Introductie Wachtwoordbeveiliging',
+                description: 'Leer waarom sterke wachtwoorden belangrijk zijn en hoe je ze maakt',
+                type: LessonType.TEXT,
+                content: JSON.stringify({ text: 'Leer waarom sterke wachtwoorden belangrijk zijn en hoe je ze maakt...' }),
+                order: 1,
+                durationMinutes: 10,
+                status: 'PUBLISHED', // ✅ Gebruik string waarde
+                difficulty: 'beginner',
+                tags: JSON.stringify(['wachtwoorden', 'basis']),
+                category: 'Security Basics'
+              },
+              {
+                title: 'Video: MFA Uitleg',
+                description: 'Uitleg over Multi-Factor Authenticatie',
+                type: LessonType.VIDEO,
+                content: JSON.stringify({ videoUrl: 'https://example.com/video/mfa-uitleg' }),
+                order: 2,
+                durationMinutes: 5,
+                status: 'PUBLISHED', // ✅ Gebruik string waarde
+                difficulty: 'beginner',
+                tags: JSON.stringify(['mfa', 'authenticatie']),
+                category: 'Technical Security'
+              },
+              {
+                title: 'Quiz: Wachtwoord Kennis',
+                description: 'Test je kennis over wachtwoordbeveiliging',
+                type: LessonType.QUIZ,
+                content: JSON.stringify({ description: 'Test je kennis over wachtwoordbeveiliging' }),
+                order: 3,
+                durationMinutes: 15,
+                status: 'PUBLISHED', // ✅ Gebruik string waarde
+                difficulty: 'beginner',
+                tags: JSON.stringify(['quiz', 'wachtwoorden']),
+                category: 'Security Basics'
               }
-            },
-            {
-              title: 'E-mail & Phishing',
-              order: 2,
-              lessons: {
-                create: [
-                  {
-                    title: 'Phishing Herkennen',
-                    type: LessonType.TEXT,
-                    content: JSON.stringify({ text: 'Leer de signalen van phishing emails herkennen...' }),
-                    order: 1,
-                    durationMinutes: 15
-                  }
-                ]
+            ]
+          }
+        },
+        {
+          title: 'E-mail & Phishing',
+          order: 2,
+          lessons: {
+            create: [
+              {
+                title: 'Phishing Herkennen',
+                description: 'Leer de signalen van phishing emails herkennen',
+                type: LessonType.TEXT,
+                content: JSON.stringify({ text: 'Leer de signalen van phishing emails herkennen...' }),
+                order: 1,
+                durationMinutes: 15,
+                status: 'PUBLISHED', // ✅ Gebruik string waarde
+                difficulty: 'beginner',
+                tags: JSON.stringify(['phishing', 'email']),
+                category: 'Security Basics'
               }
-            }
-          ]
+            ]
+          }
         }
-      }
-    })
+      ]
+    }
+  }
+})
     console.log('✅ Cybersecurity course created with modules and lessons')
 
     // 5. Maak quiz questions voor de quiz lesson

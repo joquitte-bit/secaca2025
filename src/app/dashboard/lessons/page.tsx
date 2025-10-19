@@ -1,7 +1,7 @@
 // 📁 BESTAND: /src/app/dashboard/lessons/page.tsx
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -23,7 +23,7 @@ import { SortableLesson } from '@/components/SortableLesson'
 
 // Lesson interface
 interface Lesson {
-  id: number
+  id: string
   title: string
   description: string
   status: 'Actief' | 'Inactief' | 'Concept'
@@ -41,76 +41,88 @@ interface Lesson {
 }
 
 export default function LessonsPage() {
-  const [lessons, setLessons] = useState<Lesson[]>([
-    { 
-      id: 1, 
-      title: 'Phishing herkennen: 5 rode vlaggen', 
-      status: 'Actief', 
-      description: 'Leer de belangrijkste signalen van phishing emails herkennen',
-      category: 'Security Basics',
-      duration: 15,
-      difficulty: 'Beginner',
-      type: 'Video',
-      order: 1,
-      tags: ['phishing', 'email', 'security'],
-      includedInModules: 3,
-      includedInCourses: 2,
-      completionRate: 85,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-15'
-    },
-    { 
-      id: 2, 
-      title: 'Veilige links controleren', 
-      status: 'Actief', 
-      description: 'Hoe je veilig kunt navigeren en verdachte links kunt identificeren',
-      category: 'Security Basics',
-      duration: 10,
-      difficulty: 'Beginner',
-      type: 'Interactief',
-      order: 2,
-      tags: ['links', 'browsing', 'veiligheid'],
-      includedInModules: 2,
-      includedInCourses: 1,
-      completionRate: 78,
-      createdAt: '2024-01-05',
-      updatedAt: '2024-01-14'
-    },
-    { 
-      id: 3, 
-      title: 'CEO-fraude herkennen', 
-      status: 'Concept', 
-      description: 'Specifieke technieken voor het herkennen van CEO-fraude aanvallen',
-      category: 'Advanced Security',
-      duration: 20,
-      difficulty: 'Intermediate',
-      type: 'Artikel',
-      order: 3,
-      tags: ['ceo-fraude', 'social-engineering'],
-      includedInModules: 1,
-      includedInCourses: 1,
-      completionRate: 0,
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-10'
-    },
-    { 
-      id: 4, 
-      title: 'Wachtwoord beveiliging quiz', 
-      status: 'Actief', 
-      description: 'Test je kennis over sterke wachtwoorden en beveiliging',
-      category: 'Security Basics',
-      duration: 8,
-      difficulty: 'Beginner',
-      type: 'Quiz',
-      order: 4,
-      tags: ['wachtwoord', 'quiz', 'security'],
-      includedInModules: 2,
-      includedInCourses: 2,
-      completionRate: 92,
-      createdAt: '2024-01-08',
-      updatedAt: '2024-01-15'
-    },
-  ])
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Haal lessons op van de database
+  useEffect(() => {
+    const fetchLessons = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const response = await fetch('/api/lessons')
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch lessons: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        console.log('📥 API Response data:', data)
+        
+        // FIX: Controleer of data zelf een array is (niet data.lessons)
+        if (Array.isArray(data)) {
+          // Transformeer de data naar de juiste structuur met fallback waarden
+const transformedLessons = data.map((lesson: any) => ({
+  id: lesson.id || '',
+  title: lesson.title || 'Untitled Lesson',
+  description: lesson.description || '',
+  status: lesson.status || 'Concept',
+  category: lesson.category || 'Uncategorized',
+  duration: lesson.duration || lesson.durationMinutes || 0,
+  difficulty: lesson.difficulty || 'Beginner',
+  type: lesson.type || 'Artikel',
+  order: lesson.order || 0,
+  // FIX: Safe tags handling
+  tags: Array.isArray(lesson.tags) 
+    ? lesson.tags 
+    : typeof lesson.tags === 'string' 
+      ? JSON.parse(lesson.tags || '[]')
+      : [],
+  includedInModules: lesson.includedInModules || 0,
+  includedInCourses: lesson.includedInCourses || 0,
+  completionRate: lesson.completionRate || 0,
+  createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
+  updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+}))
+          setLessons(transformedLessons)
+          console.log(`✅ Loaded ${transformedLessons.length} lessons directly from array`)
+        } else if (data.lessons && Array.isArray(data.lessons)) {
+          // Fallback voor oude structuur
+          const transformedLessons = data.lessons.map((lesson: any) => ({
+            id: lesson.id || '',
+            title: lesson.title || 'Untitled Lesson',
+            description: lesson.description || '',
+            status: lesson.status || 'Concept',
+            category: lesson.category || 'Uncategorized',
+            duration: lesson.duration || lesson.durationMinutes || 0,
+            difficulty: lesson.difficulty || 'Beginner',
+            type: lesson.type || 'Artikel',
+            order: lesson.order || 0,
+            tags: lesson.tags || [],
+            includedInModules: lesson.includedInModules || 0,
+            includedInCourses: lesson.includedInCourses || 0,
+            completionRate: lesson.completionRate || 0,
+            createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
+            updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+          }))
+          setLessons(transformedLessons)
+          console.log(`✅ Loaded ${transformedLessons.length} lessons from data.lessons`)
+        } else {
+          console.log('❌ No lessons array found in response:', data)
+          setLessons([])
+        }
+      } catch (error) {
+        console.error('Error fetching lessons:', error)
+        setError('Failed to load lessons. Please try again.')
+        setLessons([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLessons()
+  }, [])
 
   const [categories] = useState([
     'Security Basics',
@@ -140,7 +152,7 @@ export default function LessonsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Bulk actions state
-  const [selectedLessons, setSelectedLessons] = useState<number[]>([])
+  const [selectedLessons, setSelectedLessons] = useState<string[]>([])
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -171,28 +183,41 @@ export default function LessonsPage() {
     }
   }
 
-  // Filtered and sorted lessons
+  // Filtered and sorted lessons - VEILIGE VERSIE
   const filteredLessons = useMemo(() => {
+    if (!lessons || !Array.isArray(lessons)) {
+      return []
+    }
+
     let filtered = lessons.filter((lesson: Lesson) => {
-      const matchesSearch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          lesson.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (lesson.tags && lesson.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-      const matchesCategory = !selectedCategory || lesson.category === selectedCategory
-      const matchesStatus = !selectedStatus || lesson.status === selectedStatus
-      const matchesDifficulty = !selectedDifficulty || lesson.difficulty === selectedDifficulty
-      const matchesType = !selectedType || lesson.type === selectedType
+      // Veilige property access
+      const title = lesson?.title || ''
+      const description = lesson?.description || ''
+      const tags = lesson?.tags || []
+      const category = lesson?.category || ''
+      const status = lesson?.status || 'Concept'
+      const difficulty = lesson?.difficulty || 'Beginner'
+      const type = lesson?.type || 'Artikel'
+
+      const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          tags.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesCategory = !selectedCategory || category === selectedCategory
+      const matchesStatus = !selectedStatus || status === selectedStatus
+      const matchesDifficulty = !selectedDifficulty || difficulty === selectedDifficulty
+      const matchesType = !selectedType || type === selectedType
       
       return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty && matchesType
     })
 
-    // Sorting
+    // Sorting met veilige property access
     filtered.sort((a: Lesson, b: Lesson) => {
-      let aValue: any = a[sortBy]
-      let bValue: any = b[sortBy]
+      let aValue: any = a[sortBy] || 0
+      let bValue: any = b[sortBy] || 0
       
       if (sortBy === 'updatedAt') {
-        aValue = new Date(aValue)
-        bValue = new Date(bValue)
+        aValue = new Date(aValue).getTime() || 0
+        bValue = new Date(bValue).getTime() || 0
       }
       
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
@@ -214,55 +239,220 @@ export default function LessonsPage() {
     setSortOrder('asc')
   }
 
-  // Lesson actions
-  const handleDeleteLesson = (lessonId: number) => {
+  // Lesson actions - VERBETERDE VERSIE
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (!lessonId) {
+      console.error('❌ No lesson ID provided for deletion')
+      alert('Error: No lesson ID provided')
+      return
+    }
+
     if (confirm('Weet je zeker dat je deze les wilt verwijderen?')) {
-      setLessons(lessons.filter(lesson => lesson.id !== lessonId))
+      try {
+        console.log(`🗑️ Attempting to delete lesson: ${lessonId}`)
+        
+        const response = await fetch(`/api/lessons/${lessonId}`, {
+          method: 'DELETE',
+        })
+
+        console.log(`📨 Delete response status: ${response.status}`)
+
+        if (response.ok) {
+          console.log(`✅ Successfully deleted lesson: ${lessonId}`)
+          setLessons(lessons.filter(lesson => lesson.id !== lessonId))
+          // Verwijder ook uit selectedLessons als die daar in zit
+          setSelectedLessons(prev => prev.filter(id => id !== lessonId))
+        } else {
+          const errorText = await response.text()
+          console.error(`❌ Failed to delete lesson: ${response.status} - ${errorText}`)
+          alert(`Failed to delete lesson: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('💥 Error deleting lesson:', error)
+        alert('Error deleting lesson. Check console for details.')
+      }
     }
   }
 
-  const handleToggleStatus = (lessonId: number) => {
-    setLessons(lessons.map(lesson => 
-      lesson.id === lessonId 
-        ? { 
-            ...lesson, 
-            status: lesson.status === 'Actief' ? 'Inactief' : 'Actief',
-            updatedAt: new Date().toISOString().split('T')[0]
-          } 
-        : lesson
-    ))
-  }
-
-  const handleSaveLesson = (lessonData: any) => {
-    if (lessonData.id && lessons.find(l => l.id === lessonData.id)) {
-      // Update bestaande lesson
-      setLessons(lessons.map(lesson => 
-        lesson.id === lessonData.id ? {
-          ...lessonData,
-          updatedAt: new Date().toISOString().split('T')[0]
-        } : lesson
-      ))
-    } else {
-      // Nieuwe lesson
-      setLessons(prev => [...prev, {
-        ...lessonData,
-        id: Date.now(),
-        includedInModules: 0,
-        includedInCourses: 0,
-        completionRate: 0,
-        order: prev.length + 1,
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
-      }])
+  const handleToggleStatus = async (lessonId: string) => {
+    if (!lessonId) {
+      console.error('❌ No lesson ID provided for status toggle')
+      return
     }
+
+    const lesson = lessons.find(l => l.id === lessonId)
+    if (!lesson) {
+      console.error(`❌ Lesson not found: ${lessonId}`)
+      return
+    }
+
+    const newStatus = lesson.status === 'Actief' ? 'Inactief' : 'Actief'
+    console.log(`🔄 Toggling status for lesson ${lessonId} from ${lesson.status} to ${newStatus}`)
     
-    // Close modals automatisch
-    setShowCreateModal(false)
-    setEditingLesson(null)
+    try {
+      const response = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      console.log(`📨 Status update response: ${response.status}`)
+
+      if (response.ok) {
+        console.log(`✅ Successfully updated status for lesson: ${lessonId}`)
+        setLessons(lessons.map(lesson => 
+          lesson.id === lessonId 
+            ? { 
+                ...lesson, 
+                status: newStatus,
+                updatedAt: new Date().toISOString()
+              } 
+            : lesson
+        ))
+      } else {
+        const errorText = await response.text()
+        console.error(`❌ Failed to update lesson status: ${response.status} - ${errorText}`)
+        alert(`Failed to update lesson status: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('💥 Error updating lesson status:', error)
+      alert('Error updating lesson status. Check console for details.')
+    }
+  }
+
+  const handleSaveLesson = async (lessonData: any) => {
+    try {
+      console.log('📤 Sending to API:', lessonData)
+
+      // Fix content formatting
+      let contentString = lessonData.content
+      if (typeof contentString === 'string' && contentString.startsWith('{')) {
+        try {
+          JSON.parse(contentString) // Check of het valide JSON is
+          console.log('✅ Content is valid JSON, keeping as is')
+        } catch {
+          contentString = String(contentString)
+          console.log('⚠️ Content was invalid JSON, converted to string')
+        }
+      } else if (typeof contentString === 'object') {
+        contentString = JSON.stringify(contentString)
+        console.log('🔄 Content was object, stringified to JSON')
+      } else {
+        contentString = String(contentString || '')
+        console.log('📝 Content set to plain string')
+      }
+
+      const payload = {
+        ...lessonData,
+        content: contentString,
+        durationMinutes: lessonData.duration,
+        // Zorg dat alle velden aanwezig zijn die de API verwacht
+        videoUrl: lessonData.videoUrl || '',
+        tags: lessonData.tags || [],
+        order: lessonData.order || 1
+      }
+
+      console.log('🎯 Final payload to API:', payload)
+
+      let response
+      let url = '/api/lessons'
+      let method = 'POST'
+
+      if (lessonData.id && lessons.find(l => l.id === lessonData.id)) {
+        // Update bestaande lesson
+        url = `/api/lessons/${lessonData.id}`
+        method = 'PATCH'
+        console.log(`🔄 Updating existing lesson: ${lessonData.id}`)
+      } else {
+        console.log('🆕 Creating new lesson')
+      }
+
+      response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      console.log('📨 API Response status:', response.status)
+
+      if (response.ok) {
+        const savedLesson = await response.json()
+        console.log('✅ API Response data:', savedLesson)
+        
+        // Refresh de lessons lijst - FIXED VERSION
+        const refreshResponse = await fetch('/api/lessons')
+        if (refreshResponse.ok) {
+          const data = await refreshResponse.json()
+          console.log('🔄 Refreshed lessons data:', data)
+          
+          // FIX: Controleer of data zelf een array is
+          if (Array.isArray(data)) {
+            const transformedLessons = data.map((lesson: any) => ({
+              id: lesson.id || '',
+              title: lesson.title || 'Untitled Lesson',
+              description: lesson.description || '',
+              status: lesson.status || 'Concept',
+              category: lesson.category || 'Uncategorized',
+              duration: lesson.duration || lesson.durationMinutes || 0,
+              difficulty: lesson.difficulty || 'Beginner',
+              type: lesson.type || 'Artikel',
+              order: lesson.order || 0,
+              tags: lesson.tags || [],
+              includedInModules: lesson.includedInModules || 0,
+              includedInCourses: lesson.includedInCourses || 0,
+              completionRate: lesson.completionRate || 0,
+              createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
+              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+            }))
+            setLessons(transformedLessons)
+            console.log(`📊 Loaded ${transformedLessons.length} lessons directly from array`)
+          } else if (data.lessons && Array.isArray(data.lessons)) {
+            // Fallback voor oude structuur
+            const transformedLessons = data.lessons.map((lesson: any) => ({
+              id: lesson.id || '',
+              title: lesson.title || 'Untitled Lesson',
+              description: lesson.description || '',
+              status: lesson.status || 'Concept',
+              category: lesson.category || 'Uncategorized',
+              duration: lesson.duration || lesson.durationMinutes || 0,
+              difficulty: lesson.difficulty || 'Beginner',
+              type: lesson.type || 'Artikel',
+              order: lesson.order || 0,
+              tags: lesson.tags || [],
+              includedInModules: lesson.includedInModules || 0,
+              includedInCourses: lesson.includedInCourses || 0,
+              completionRate: lesson.completionRate || 0,
+              createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
+              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+            }))
+            setLessons(transformedLessons)
+            console.log(`📊 Loaded ${transformedLessons.length} lessons from data.lessons`)
+          } else {
+            console.log('❌ No lessons array found in refresh response:', data)
+          }
+        }
+        
+        // Close modals automatisch
+        setShowCreateModal(false)
+        setEditingLesson(null)
+        alert('Les succesvol opgeslagen!')
+      } else {
+        const errorText = await response.text()
+        console.error('❌ API Error response:', errorText)
+        alert(`Failed to save lesson: ${response.status} - ${errorText}`)
+      }
+    } catch (error) {
+      console.error('💥 Error saving lesson:', error)
+      alert(`Error saving lesson: ${error}`)
+    }
   }
 
   // Bulk action handlers
-  const toggleLessonSelection = (lessonId: number) => {
+  const toggleLessonSelection = (lessonId: string) => {
     setSelectedLessons(prev =>
       prev.includes(lessonId)
         ? prev.filter(id => id !== lessonId)
@@ -272,25 +462,80 @@ export default function LessonsPage() {
 
   const selectAllLessons = () => {
     setSelectedLessons(
-      selectedLessons.length === filteredLessons.length
+      selectedLessons.length === filteredLessons.length && filteredLessons.length > 0
         ? []
         : filteredLessons.map((lesson: Lesson) => lesson.id)
     )
   }
 
-  const handleBulkStatusChange = (newStatus: 'Actief' | 'Inactief') => {
-    setLessons(lessons.map(lesson =>
-      selectedLessons.includes(lesson.id)
-        ? { ...lesson, status: newStatus, updatedAt: new Date().toISOString().split('T')[0] }
-        : lesson
-    ))
-    setSelectedLessons([])
+  const handleBulkStatusChange = async (newStatus: 'Actief' | 'Inactief') => {
+    if (selectedLessons.length === 0) return
+
+    try {
+      console.log(`🔄 Bulk updating ${selectedLessons.length} lessons to status: ${newStatus}`)
+      
+      const response = await fetch('/api/lessons/bulk', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lessonIds: selectedLessons,
+          status: newStatus
+        }),
+      })
+
+      console.log(`📨 Bulk update response: ${response.status}`)
+
+      if (response.ok) {
+        console.log(`✅ Successfully bulk updated ${selectedLessons.length} lessons`)
+        setLessons(lessons.map(lesson =>
+          selectedLessons.includes(lesson.id)
+            ? { ...lesson, status: newStatus, updatedAt: new Date().toISOString() }
+            : lesson
+        ))
+        setSelectedLessons([])
+      } else {
+        const errorText = await response.text()
+        console.error(`❌ Failed to bulk update lessons: ${response.status} - ${errorText}`)
+        alert(`Failed to update lessons: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('💥 Error updating lessons:', error)
+      alert('Error updating lessons. Check console for details.')
+    }
   }
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
+    if (selectedLessons.length === 0) return
+
     if (confirm(`Weet je zeker dat je ${selectedLessons.length} lessen wilt verwijderen?`)) {
-      setLessons(lessons.filter(lesson => !selectedLessons.includes(lesson.id)))
-      setSelectedLessons([])
+      try {
+        console.log(`🗑️ Attempting bulk delete of ${selectedLessons.length} lessons`)
+        
+        const response = await fetch('/api/lessons/bulk', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ lessonIds: selectedLessons }),
+        })
+
+        console.log(`📨 Bulk delete response: ${response.status}`)
+
+        if (response.ok) {
+          console.log(`✅ Successfully bulk deleted ${selectedLessons.length} lessons`)
+          setLessons(lessons.filter(lesson => !selectedLessons.includes(lesson.id)))
+          setSelectedLessons([])
+        } else {
+          const errorText = await response.text()
+          console.error(`❌ Failed to bulk delete lessons: ${response.status} - ${errorText}`)
+          alert(`Failed to delete lessons: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('💥 Error deleting lessons:', error)
+        alert('Error deleting lessons. Check console for details.')
+      }
     }
   }
 
@@ -303,24 +548,89 @@ export default function LessonsPage() {
   )
 
   // Handle drag end
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (over && active.id !== over.id) {
-      setLessons((currentLessons) => {
-        const oldIndex = currentLessons.findIndex((lesson) => lesson.id === active.id)
-        const newIndex = currentLessons.findIndex((lesson) => lesson.id === over.id)
+      const oldIndex = lessons.findIndex((lesson) => lesson.id === active.id)
+      const newIndex = lessons.findIndex((lesson) => lesson.id === over.id)
 
-        const reorderedLessons = arrayMove(currentLessons, oldIndex, newIndex)
-        
-        // Update order numbers based on new positions
-        return reorderedLessons.map((lesson, index) => ({
-          ...lesson,
-          order: index + 1,
-          updatedAt: new Date().toISOString().split('T')[0]
-        }))
-      })
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reorderedLessons = arrayMove(lessons, oldIndex, newIndex)
+      
+      // Update order numbers based on new positions
+      const updatedLessons = reorderedLessons.map((lesson, index) => ({
+        ...lesson,
+        order: index + 1,
+        updatedAt: new Date().toISOString()
+      }))
+
+      setLessons(updatedLessons)
+
+      // Update order in database
+      try {
+        const response = await fetch('/api/lessons/reorder', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            lessons: updatedLessons.map(lesson => ({
+              id: lesson.id,
+              order: lesson.order
+            }))
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Failed to update lesson order')
+        }
+      } catch (error) {
+        console.error('Error updating lesson order:', error)
+      }
     }
+  }
+
+  // Calculate statistics safely
+  const totalLessons = lessons.length
+  const activeLessons = lessons.filter(l => l.status === 'Actief').length
+  const averageCompletion = lessons.length > 0 
+    ? Math.round(lessons.reduce((acc, lesson) => acc + (lesson.completionRate || 0), 0) / lessons.length)
+    : 0
+  const totalDuration = lessons.reduce((acc, lesson) => acc + (lesson.duration || 0), 0)
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600">
+            <Icons.loading />
+          </div>
+          <p className="text-gray-600">Lessen laden...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 text-red-500 mx-auto mb-4">
+            <Icons.close />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -335,7 +645,9 @@ export default function LessonsPage() {
             onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
           >
-            <Icons.add className="w-4 h-4" />
+            <div className="w-4 h-4">
+              <Icons.add />
+            </div>
             <span>Nieuwe Les</span>
           </button>
         </div>
@@ -358,7 +670,9 @@ export default function LessonsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Icons.document className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <div className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Icons.document />
+              </div>
             </div>
           </div>
 
@@ -532,9 +846,11 @@ export default function LessonsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Totaal Lessen</p>
-              <p className="text-2xl font-semibold text-gray-900">{lessons.length}</p>
+              <p className="text-2xl font-semibold text-gray-900">{totalLessons}</p>
             </div>
-            <Icons.lessons className="w-8 h-8 text-blue-600" />
+            <div className="w-8 h-8 text-blue-600">
+              <Icons.lessons />
+            </div>
           </div>
         </div>
         
@@ -542,11 +858,11 @@ export default function LessonsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Actieve Lessen</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {lessons.filter(l => l.status === 'Actief').length}
-              </p>
+              <p className="text-2xl font-semibold text-gray-900">{activeLessons}</p>
             </div>
-            <Icons.check className="w-8 h-8 text-green-600" />
+            <div className="w-8 h-8 text-green-600">
+              <Icons.check />
+            </div>
           </div>
         </div>
         
@@ -554,11 +870,11 @@ export default function LessonsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {Math.round(lessons.reduce((acc, lesson) => acc + lesson.completionRate, 0) / lessons.length)}%
-              </p>
+              <p className="text-2xl font-semibold text-gray-900">{averageCompletion}%</p>
             </div>
-            <Icons.chart className="w-8 h-8 text-orange-600" />
+            <div className="w-8 h-8 text-orange-600">
+              <Icons.chart />
+            </div>
           </div>
         </div>
         
@@ -566,11 +882,11 @@ export default function LessonsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Totale Duur</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {lessons.reduce((acc, lesson) => acc + lesson.duration, 0)} min
-              </p>
+              <p className="text-2xl font-semibold text-gray-900">{totalDuration} min</p>
             </div>
-            <Icons.clock className="w-8 h-8 text-purple-600" />
+            <div className="w-8 h-8 text-purple-600">
+              <Icons.clock />
+            </div>
           </div>
         </div>
       </div>
@@ -617,7 +933,9 @@ export default function LessonsPage() {
             <div className="divide-y divide-gray-200">
               {filteredLessons.length === 0 ? (
                 <div className="px-6 py-12 text-center">
-                  <Icons.document className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <div className="w-12 h-12 text-gray-400 mx-auto mb-4">
+                    <Icons.document />
+                  </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Geen lessen gevonden</h3>
                   <p className="text-gray-600 mb-4">
                     {searchTerm || selectedCategory || selectedStatus || selectedDifficulty || selectedType

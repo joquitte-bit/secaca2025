@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Icons } from './Icons'
 
 interface Lesson {
-  id: number
+  id: string
   title: string
   status: 'Actief' | 'Inactief' | 'Concept'
   description: string
@@ -26,10 +26,10 @@ interface Lesson {
 interface SortableLessonProps {
   lesson: Lesson
   isSelected: boolean
-  onToggleSelection: (lessonId: number) => void
+  onToggleSelection: (lessonId: string) => void
   onEdit: (lesson: Lesson) => void
-  onToggleStatus: (lessonId: number) => void
-  onDelete: (lessonId: number) => void
+  onToggleStatus: (lessonId: string) => void
+  onDelete: (lessonId: string) => void
   getStatusColor: (status: string) => string
   getDifficultyColor: (difficulty: string) => string
   getTypeColor: (type: string) => string
@@ -137,9 +137,9 @@ export function SortableLesson({
               <span className="text-gray-400">Bijgewerkt: {lesson.updatedAt}</span>
             </div>
             
-            {lesson.tags && lesson.tags.length > 0 && (
+            {lesson.tags && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {lesson.tags.map((tag: string) => (
+                {(typeof lesson.tags === 'string' ? JSON.parse(lesson.tags) : lesson.tags || []).map((tag: string) => (
                   <span key={tag} className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
                     {tag}
                   </span>
@@ -195,10 +195,12 @@ export function SortableLesson({
               title={lesson.status === 'Actief' ? 'Deactiveer les' : 'Activeer les'}
             >
               {lesson.status === 'Actief' ? (
+                // Gebruik een beschikbare icon voor "uit" of "sluiten"
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               ) : (
+                // Gebruik een beschikbare icon voor "aan" of "actief"
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -210,9 +212,7 @@ export function SortableLesson({
               className="text-gray-600 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
               title="Verwijder les"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <Icons.trash className="w-4 h-4" />
             </button>
           </div>
         </div>

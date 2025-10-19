@@ -1,54 +1,106 @@
-// src/app/api/modules/[id]/lessons/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
-  try {
-    const moduleId = context.params.id
-
-    const lessons = await prisma.lesson.findMany({
-      where: { moduleId },
-      orderBy: { order: 'asc' }
-    })
-
-    return NextResponse.json(lessons)
-  } catch (error) {
-    console.error('Error fetching lessons:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import prisma from '@/lib/prisma';
 
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { moduleId: string } }
 ) {
   try {
-    const moduleId = context.params.id
-    const { title, content, duration, isFree } = await request.json()
+    // Supabase auth check - nu async
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Bepaal volgende order nummer
-    const lastLesson = await prisma.lesson.findFirst({
-      where: { moduleId },
-      orderBy: { order: 'desc' }
-    })
+    const { moduleId } = params;
+    const body = await request.json();
+    
+    const { 
+      title, 
+      description, 
+      type, 
+      content, 
+      order, 
+      durationMinutes,
+      status, 
+      difficulty, 
+      tags, 
+      category, 
+      videoUrl 
+    } = body;
 
+    // Check if module exists
+    const module = await prisma.module.findUnique({
+      where: { id: moduleId }
+    });
+
+    if (!module) {
+      return NextResponse.json({ error: 'Module not found' }, { status: 404 });
+    }
+
+    // Create lesson
     const lesson = await prisma.lesson.create({
       data: {
         title,
-        content: content || null,
-        duration: duration || null,
-        isFree: isFree || false,
-        order: (lastLesson?.order || 0) + 1,
-        moduleId,
+        description,
+        type,
+        content,
+        order: order || 0,
+        durationMinutes,
+        status: status || 'DRAFT',
+        difficulty,
+        tags,
+        category,
+        videoUrl,
+        moduleId: moduleId
       },
-    })
+      include: {
+        module: true
+      }
+    });
 
-    return NextResponse.json(lesson)
+    return NextResponse.json(lesson);
   } catch (error) {
-    console.error('Error creating lesson:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Lesson creation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create lesson' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { moduleId: string } }
+) {
+  try {
+    // Supabase auth check - nu async
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { moduleId } = params;
+
+    const lessons = await prisma.lesson.findMany({
+      where: { moduleId },
+      orderBy: { order: 'asc' },
+      include: {
+        module: true
+      }
+    });
+
+    return NextResponse.json(lessons);
+  } catch (error) {
+    console.error('Lessons fetch error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch lessons' },
+      { status: 500 }
+    );
   }
 }
