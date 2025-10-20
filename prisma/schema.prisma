@@ -131,12 +131,20 @@ model Module {
   title       String
   description String?
   order       Int      @default(0)
+  
+  // NIEUWE VELDEN voor SECACA modules
+  category    String?  @default("Uncategorized")
+  status      String?  @default("Concept")
+  duration    Int?     @default(0)
+  difficulty  String?  @default("Beginner")
+  tags        String?  // JSON string voor SQLite compatibiliteit
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons Lesson[]
+  lessons LessonOnModule[]  // ✅ Many-to-many via junction table
 
   @@index([courseId, order])
   @@map("modules")
@@ -144,7 +152,6 @@ model Module {
 
 model Lesson {
   id              String       @id @default(cuid())
-  moduleId        String? // Maak optioneel voor standalone lessons
   orgId           String? // Voor organization-specific lessons
   title           String
   description     String?
@@ -161,14 +168,27 @@ model Lesson {
   updatedAt       DateTime     @updatedAt
 
   // Relations
-  module        Module?        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  organization  Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  quizQuestions QuizQuestion[]
-  quizAttempts  QuizAttempt[]
+  organization    Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  quizQuestions   QuizQuestion[]
+  quizAttempts    QuizAttempt[]
+  modules         LessonOnModule[]  // ✅ Many-to-many via junction table
 
-  @@index([moduleId, order])
   @@index([orgId])
   @@map("lessons")
+}
+
+// 📍 NIEUW: Junction table voor many-to-many tussen lessons en modules
+model LessonOnModule {
+  id        String   @id @default(cuid())
+  moduleId  String
+  lessonId  String
+  order     Int      @default(0) // Volgorde binnen de module
+  
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  @@unique([moduleId, lessonId])  // Voorkom dubbele koppelingen
+  @@map("lesson_on_module")
 }
 
 model QuizQuestion {

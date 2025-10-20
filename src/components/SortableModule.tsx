@@ -4,7 +4,15 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Icons } from './Icons'
 
-// Gebruik dezelfde Module interface als in page.tsx
+// Update de Module interface om lessons array te ondersteunen
+interface Lesson {
+  id: string
+  title: string
+  description?: string
+  // 📍 VERWIJDERD: duration en difficulty - bestaan niet in Lesson model
+  order?: number
+}
+
 interface Module {
   id: string
   title: string
@@ -17,7 +25,7 @@ interface Module {
   tags?: string[]
   students: number
   progress: number
-  lessons: any
+  lessons: Lesson[] | number // Kan array zijn OF number voor backward compatibility
   createdAt: string
   updatedAt: string
 }
@@ -33,7 +41,7 @@ interface SortableModuleProps {
   onToggleStatus: (moduleId: string) => void
 }
 
-export function SortableModule({ 
+export default function SortableModule({ 
   module, 
   isSelected, 
   onToggleSelection, 
@@ -57,19 +65,26 @@ export function SortableModule({
     transition,
   }
 
-  // Veilige manier om lessons count te bepalen
-  const getLessonsCount = () => {
-    if (typeof module.lessons === 'number') {
-      return module.lessons
-    } else if (Array.isArray(module.lessons)) {
-      return module.lessons.length
-    } else if (module.lessons && typeof module.lessons === 'object') {
-      return 1
+  // Veilige manier om lessons count en array te bepalen
+  const getLessonsData = () => {
+    if (Array.isArray(module.lessons)) {
+      return {
+        count: module.lessons.length,
+        lessons: module.lessons
+      }
+    } else if (typeof module.lessons === 'number') {
+      return {
+        count: module.lessons,
+        lessons: [] // Geen lesson data beschikbaar
+      }
     }
-    return 0
+    return {
+      count: 0,
+      lessons: []
+    }
   }
 
-  const lessonsCount = getLessonsCount()
+  const { count: lessonsCount, lessons: lessonList } = getLessonsData()
 
   // Format date like lessons page
   const formatDate = (dateString: string) => {
@@ -135,7 +150,53 @@ export function SortableModule({
                 {module.description}
               </p>
 
-              {/* Derde rij: Metadata - IDENTIEK AAN LESSONS */}
+              {/* 📍 TOEGEVOEGD: Gekoppelde lessons weergeven */}
+              {lessonList.length > 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center space-x-2 text-sm text-blue-600 mb-2">
+                    <Icons.lessons className="w-4 h-4" />
+                    <span className="font-medium">{lessonsCount} gekoppelde lesson(s):</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {lessonList.slice(0, 4).map((lesson) => (
+                      <span 
+                        key={lesson.id}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
+                        title={lesson.description}
+                      >
+                        <Icons.document className="w-3 h-3 mr-1" />
+                        {lesson.title}
+                        {/* 📍 VERWIJDERD: duration display - bestaat niet in Lesson model */}
+                      </span>
+                    ))}
+                    {lessonList.length > 4 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                        +{lessonList.length - 4} meer
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {lessonList.length === 0 && lessonsCount > 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center space-x-2 text-sm text-orange-600">
+                    <Icons.lessons className="w-4 h-4" />
+                    <span>{lessonsCount} lessons gekoppeld (details niet beschikbaar)</span>
+                  </div>
+                </div>
+              )}
+
+              {lessonsCount === 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Icons.lessons className="w-4 h-4" />
+                    <span>Geen lessons gekoppeld</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Derde rij: Metadata */}
               <div className="flex items-center space-x-6 text-sm text-gray-500 mb-2">
                 <span className="flex items-center space-x-1">
                   <Icons.clock className="w-4 h-4" />
@@ -143,11 +204,11 @@ export function SortableModule({
                 </span>
                 <span className="flex items-center space-x-1">
                   <Icons.modules className="w-4 h-4" />
-                  <span>{lessonsCount}modules</span>
+                  <span>{lessonsCount} lessons</span>
                 </span>
                 <span className="flex items-center space-x-1">
                   <Icons.users className="w-4 h-4" />
-                  <span>{module.students}courses</span>
+                  <span>{module.students} students</span>
                 </span>
                 <span className="flex items-center space-x-1">
                   <span>Bijgewerkt: {formatDate(module.updatedAt)}</span>
@@ -175,9 +236,9 @@ export function SortableModule({
             </div>
           </div>
 
-          {/* Actie Iconen - Rechts - IDENTIEK AAN LESSONS */}
+          {/* Actie Iconen - Rechts */}
           <div className="flex items-center space-x-3 ml-4">
-            {/* Voortgang percentage - zoals in lessons */}
+            {/* Voortgang percentage */}
             <span className="text-sm font-medium text-gray-700 min-w-12 text-right">
               voltooid
             </span>
@@ -210,7 +271,7 @@ export function SortableModule({
               </svg>
             </button>
 
-            {/* Publicatiestatus - ZELFDE ALS LESSONS: altijd groen vinkje */}
+            {/* Publicatiestatus */}
             <button
               onClick={() => onToggleStatus(module.id)}
               className="text-green-500 hover:text-green-700 transition-colors p-1"

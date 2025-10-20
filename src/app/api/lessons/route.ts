@@ -1,83 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import prisma from '@/lib/prisma';
+// src/app/api/lessons/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Supabase auth check - nu async
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { searchParams } = new URL(request.url)
+    const orgId = searchParams.get('orgId') || 'default-org'
 
+    console.log('🔍 Fetching lessons for org:', orgId)
+
+    // Haal ALLE lessons op, ook die zonder orgId
     const lessons = await prisma.lesson.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        module: true
-      }
-    });
+      orderBy: { createdAt: 'desc' }
+    })
 
-    return NextResponse.json(lessons);
+    console.log(`✅ ${lessons.length} lessons gevonden (inclusief zonder orgId)`)
+    console.log('📋 Lesson IDs:', lessons.map(l => ({ id: l.id, orgId: l.orgId })))
+
+    // Transform the data to match frontend expectations
+    const transformedLessons = lessons.map(lesson => ({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description || '',
+      type: lesson.type,
+      content: lesson.content,
+      order: lesson.order,
+      duration: lesson.durationMinutes || 0,
+      status: lesson.status,
+      difficulty: lesson.difficulty || 'Beginner',
+      tags: lesson.tags ? JSON.parse(lesson.tags) : [],
+      category: lesson.category || 'Uncategorized',
+      videoUrl: lesson.videoUrl,
+      moduleId: null,
+      students: 0,
+      progress: 0,
+      createdAt: lesson.createdAt.toISOString().split('T')[0],
+      updatedAt: lesson.updatedAt.toISOString().split('T')[0],
+    }))
+
+    return NextResponse.json(transformedLessons)
   } catch (error) {
-    console.error('Lessons fetch error:', error);
+    console.error('Lessons fetch error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch lessons' },
       { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Supabase auth check - nu async
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { 
-      title, 
-      description, 
-      type, 
-      content, 
-      order, 
-      durationMinutes,
-      status, 
-      difficulty, 
-      tags, 
-      category, 
-      videoUrl,
-      moduleId 
-    } = body;
-
-    const lesson = await prisma.lesson.create({
-      data: {
-        title,
-        description,
-        type: type || 'TEXT',
-        content,
-        order: order || 0,
-        durationMinutes,
-        status: status || 'DRAFT',
-        difficulty,
-        tags,
-        category,
-        videoUrl,
-        moduleId: moduleId || null
-      }
-    });
-
-    return NextResponse.json(lesson);
-  } catch (error) {
-    console.error('Lesson creation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create lesson' },
-      { status: 500 }
-    );
+    )
   }
 }

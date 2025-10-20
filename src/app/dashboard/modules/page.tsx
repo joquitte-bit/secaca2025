@@ -19,9 +19,18 @@ import {
 } from '@dnd-kit/sortable'
 import { Icons } from '@/components/Icons'
 import { ModuleModal as ModuleEditor } from '@/components/ModuleModal'
-import { SortableModule } from '@/components/SortableModule'
+import SortableModule from '@/components/SortableModule'
 
-// Module interface - CONSISTENTE VERSIE
+// Update de Module interface om lessons array te ondersteunen
+interface Lesson {
+  id: string
+  title: string
+  description?: string
+  duration?: number
+  difficulty?: string
+  order?: number
+}
+
 interface Module {
   id: string
   title: string
@@ -31,12 +40,14 @@ interface Module {
   duration: number
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
   order: number
-  tags?: string[]
+  tags: string[] // 📍 VERPLICHT: altijd een array
   students: number
   progress: number
-  lessons: number
+  lessons: Lesson[] | number // Kan array zijn OF number voor backward compatibility
   createdAt: string
   updatedAt: string
+  includedLessons?: string[] // Optioneel: voor ModuleModal
+  courseId?: string // Optioneel: voor ModuleModal
 }
 
 export default function ModulesPage() {
@@ -76,35 +87,15 @@ export default function ModulesPage() {
                 : [],
             students: module.students || 0,
             progress: module.progress || 0,
-            lessons: module.lessons || (Array.isArray(module.includedLessons) ? module.includedLessons.length : 0) || 0,
+            // 📍 CRITICAL FIX: Gebruik lessons array als die bestaat, anders count
+            lessons: Array.isArray(module.lessons) 
+              ? module.lessons  // Gebruik de volledige lessons array
+              : module.lessonsCount || 0, // Fallback naar number voor backward compatibility
             createdAt: module.createdAt || new Date().toISOString().split('T')[0],
             updatedAt: module.updatedAt || new Date().toISOString().split('T')[0]
           }))
           setModules(transformedModules)
-          console.log(`✅ Loaded ${transformedModules.length} modules directly from array`)
-        } else if (data.modules && Array.isArray(data.modules)) {
-          const transformedModules = data.modules.map((module: any) => ({
-            id: module.id || '',
-            title: module.title || 'Untitled Module',
-            description: module.description || '',
-            status: module.status || 'Concept',
-            category: module.category || 'Uncategorized',
-            duration: module.duration || 0,
-            difficulty: module.difficulty || 'Beginner',
-            order: module.order || 0,
-            tags: Array.isArray(module.tags) 
-              ? module.tags 
-              : typeof module.tags === 'string' 
-                ? JSON.parse(module.tags || '[]')
-                : [],
-            students: module.students || 0,
-            progress: module.progress || 0,
-            lessons: module.lessons || (Array.isArray(module.includedLessons) ? module.includedLessons.length : 0) || 0,
-            createdAt: module.createdAt || new Date().toISOString().split('T')[0],
-            updatedAt: module.updatedAt || new Date().toISOString().split('T')[0]
-          }))
-          setModules(transformedModules)
-          console.log(`✅ Loaded ${transformedModules.length} modules from data.modules`)
+          console.log(`✅ Loaded ${transformedModules.length} modules with lessons data`)
         } else {
           console.log('❌ No modules array found in response:', data)
           setModules([])
@@ -298,6 +289,11 @@ export default function ModulesPage() {
 
   const handleSaveModule = async (moduleData: any) => {
     try {
+      console.log('🔍 [DEBUG] Module data from modal:', moduleData)
+      console.log('📚 [DEBUG] Included lessons:', moduleData.includedLessons)
+      console.log('🏷️ [DEBUG] Category:', moduleData.category)
+      console.log('🔄 [DEBUG] Status:', moduleData.status)
+
       console.log('💾 Saving module data:', moduleData)
 
       // Bereid de data voor voor de API - gebruik de data van ModuleModal
@@ -314,7 +310,10 @@ export default function ModulesPage() {
         courseId: moduleData.courseId
       }
 
+      // 📍 DEBUG LOGS - NA payload declaratie
       console.log('🎯 Final payload to API:', payload)
+      console.log('🔢 Lessons in payload:', payload.lessonIds)
+      console.log('📊 Lessons count in payload:', payload.lessonIds.length)
 
       let response
       let url = '/api/modules'
@@ -346,6 +345,8 @@ export default function ModulesPage() {
 
       const savedModule = await response.json()
       console.log('✅ Module saved successfully:', savedModule)
+      console.log('🔢 Lessons in response:', savedModule.lessons?.length)
+      console.log('📋 Lessons details in response:', savedModule.lessons)
 
       // Update de state direct in plaats van te refreshen
       if (moduleData.id) {
@@ -362,7 +363,8 @@ export default function ModulesPage() {
                 difficulty: moduleData.difficulty || 'Beginner',
                 order: moduleData.order || 1,
                 tags: moduleData.tags || [],
-                lessons: moduleData.includedLessons?.length || 0,
+                // 📍 FIX: Gebruik de echte lessons array van de API response
+                lessons: savedModule.lessons || moduleData.includedLessons?.length || 0,
                 updatedAt: new Date().toISOString()
               }
             : module
@@ -381,7 +383,8 @@ export default function ModulesPage() {
           tags: moduleData.tags || [],
           students: 0,
           progress: 0,
-          lessons: moduleData.includedLessons?.length || 0,
+          // 📍 FIX: Gebruik de echte lessons array
+          lessons: savedModule.lessons || moduleData.includedLessons?.length || 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
@@ -544,7 +547,9 @@ export default function ModulesPage() {
   const totalDuration = modules.reduce((acc, module) => acc + (module.duration || 0), 0)
   const totalLessons = modules.reduce((acc, module) => {
     const lessons = module.lessons;
-    if (typeof lessons === 'number') {
+    if (Array.isArray(lessons)) {
+      return acc + lessons.length;
+    } else if (typeof lessons === 'number') {
       return acc + lessons;
     } else {
       return acc + 0;
@@ -890,7 +895,7 @@ export default function ModulesPage() {
                     module={module}
                     isSelected={selectedModules.includes(module.id)}
                     onToggleSelection={toggleModuleSelection}
-                    onEdit={(module) => setEditingModule(module)}
+                    onEdit={(module) => setEditingModule(module as any)}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDeleteModule}
                     getStatusColor={getStatusColor}
