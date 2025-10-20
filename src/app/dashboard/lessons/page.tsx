@@ -18,78 +18,75 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Icons } from '@/components/Icons'
-import LessonEditor from '@/components/LessonEditor'
+import { LessonModal } from '@/components/LessonModal'
 import { SortableLesson } from '@/components/SortableLesson'
 
-// Lesson interface
+// ✅ GECORRIGEERDE Lesson interface - consistent met SortableLesson
 interface Lesson {
   id: string
   title: string
   description: string
-  status: 'Actief' | 'Inactief' | 'Concept'
   category: string
-  duration: number
-  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
+  difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
+  status: 'Actief' | 'Inactief' | 'Concept'
   type: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
-  order: number
+  duration: number
+  content?: string
   tags?: string[]
-  includedInModules: number
-  includedInCourses: number
-  completionRate: number
-  createdAt: string
-  updatedAt: string
+  order?: number
+  modules?: any[]
+  moduleCount?: number
+  includedInModules?: number
+  includedInCourses?: number
+  completionRate?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Module interface
+interface Module {
+  id: string
+  title: string
+  description?: string
 }
 
 export default function LessonsPage() {
   const [lessons, setLessons] = useState<Lesson[]>([])
+  const [modules, setModules] = useState<Module[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Haal lessons op van de database
+  // Haal lessons EN modules op van de database
   useEffect(() => {
-    const fetchLessons = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
         setError(null)
-        const response = await fetch('/api/lessons')
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch lessons: ${response.status}`)
+        // Haal lessons op
+        const lessonsResponse = await fetch('/api/lessons')
+        if (!lessonsResponse.ok) {
+          throw new Error(`Failed to fetch lessons: ${lessonsResponse.status}`)
         }
         
-        const data = await response.json()
-        console.log('📥 API Response data:', data)
+        const lessonsData = await lessonsResponse.json()
+        console.log('📥 Lessons API Response data:', lessonsData)
         
-        // FIX: Controleer of data zelf een array is (niet data.lessons)
-        if (Array.isArray(data)) {
-          // Transformeer de data naar de juiste structuur met fallback waarden
-const transformedLessons = data.map((lesson: any) => ({
-  id: lesson.id || '',
-  title: lesson.title || 'Untitled Lesson',
-  description: lesson.description || '',
-  status: lesson.status || 'Concept',
-  category: lesson.category || 'Uncategorized',
-  duration: lesson.duration || lesson.durationMinutes || 0,
-  difficulty: lesson.difficulty || 'Beginner',
-  type: lesson.type || 'Artikel',
-  order: lesson.order || 0,
-  // FIX: Safe tags handling
-  tags: Array.isArray(lesson.tags) 
-    ? lesson.tags 
-    : typeof lesson.tags === 'string' 
-      ? JSON.parse(lesson.tags || '[]')
-      : [],
-  includedInModules: lesson.includedInModules || 0,
-  includedInCourses: lesson.includedInCourses || 0,
-  completionRate: lesson.completionRate || 0,
-  createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
-  updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
-}))
-          setLessons(transformedLessons)
-          console.log(`✅ Loaded ${transformedLessons.length} lessons directly from array`)
-        } else if (data.lessons && Array.isArray(data.lessons)) {
-          // Fallback voor oude structuur
-          const transformedLessons = data.lessons.map((lesson: any) => ({
+        // Haal modules op
+        const modulesResponse = await fetch('/api/modules')
+        let modulesData: Module[] = []
+        if (modulesResponse.ok) {
+          modulesData = await modulesResponse.json()
+          console.log('📥 Modules API Response data:', modulesData)
+        } else {
+          console.warn('⚠️ Could not fetch modules, using empty array')
+        }
+        
+        setModules(modulesData)
+
+        // Transformeer lessons data
+        if (Array.isArray(lessonsData)) {
+          const transformedLessons = lessonsData.map((lesson: any) => ({
             id: lesson.id || '',
             title: lesson.title || 'Untitled Lesson',
             description: lesson.description || '',
@@ -99,29 +96,42 @@ const transformedLessons = data.map((lesson: any) => ({
             difficulty: lesson.difficulty || 'Beginner',
             type: lesson.type || 'Artikel',
             order: lesson.order || 0,
-            tags: lesson.tags || [],
-            includedInModules: lesson.includedInModules || 0,
+            tags: Array.isArray(lesson.tags) 
+              ? lesson.tags 
+              : typeof lesson.tags === 'string' 
+                ? JSON.parse(lesson.tags || '[]')
+                : [],
+            // ✅ CRITICAL FIX: Gebruik moduleCount van API, fallback naar modules.length
+            moduleCount: lesson.moduleCount || (lesson.modules ? lesson.modules.length : 0),
+            includedInModules: lesson.moduleCount || lesson.includedInModules || (lesson.modules ? lesson.modules.length : 0),
             includedInCourses: lesson.includedInCourses || 0,
             completionRate: lesson.completionRate || 0,
             createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
-            updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+            updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0],
+            modules: lesson.modules || []
           }))
           setLessons(transformedLessons)
-          console.log(`✅ Loaded ${transformedLessons.length} lessons from data.lessons`)
+          console.log(`✅ Loaded ${transformedLessons.length} lessons and ${modulesData.length} modules`)
+          console.log('📊 Module counts sample:', transformedLessons.map((l: any) => ({ 
+            title: l.title, 
+            moduleCount: l.moduleCount,
+            modules: l.modules?.length 
+          })))
         } else {
-          console.log('❌ No lessons array found in response:', data)
+          console.log('❌ No lessons array found in response:', lessonsData)
           setLessons([])
         }
       } catch (error) {
-        console.error('Error fetching lessons:', error)
-        setError('Failed to load lessons. Please try again.')
+        console.error('Error fetching data:', error)
+        setError('Failed to load data. Please try again.')
         setLessons([])
+        setModules([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchLessons()
+    fetchData()
   }, [])
 
   const [categories] = useState([
@@ -148,7 +158,7 @@ const transformedLessons = data.map((lesson: any) => ({
   const [selectedStatus, setSelectedStatus] = useState('')
   const [selectedDifficulty, setSelectedDifficulty] = useState('')
   const [selectedType, setSelectedType] = useState('')
-  const [sortBy, setSortBy] = useState<'title' | 'order' | 'completionRate' | 'duration' | 'updatedAt'>('order')
+  const [sortBy, setSortBy] = useState<'title' | 'order' | 'completionRate' | 'duration' | 'updatedAt' | 'moduleCount'>('order')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Bulk actions state
@@ -183,14 +193,13 @@ const transformedLessons = data.map((lesson: any) => ({
     }
   }
 
-  // Filtered and sorted lessons - VEILIGE VERSIE
+  // Filtered and sorted lessons
   const filteredLessons = useMemo(() => {
     if (!lessons || !Array.isArray(lessons)) {
       return []
     }
 
     let filtered = lessons.filter((lesson: Lesson) => {
-      // Veilige property access
       const title = lesson?.title || ''
       const description = lesson?.description || ''
       const tags = lesson?.tags || []
@@ -210,7 +219,7 @@ const transformedLessons = data.map((lesson: any) => ({
       return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty && matchesType
     })
 
-    // Sorting met veilige property access
+    // Sorting
     filtered.sort((a: Lesson, b: Lesson) => {
       let aValue: any = a[sortBy] || 0
       let bValue: any = b[sortBy] || 0
@@ -239,7 +248,7 @@ const transformedLessons = data.map((lesson: any) => ({
     setSortOrder('asc')
   }
 
-  // Lesson actions - VERBETERDE VERSIE
+  // Lesson actions
   const handleDeleteLesson = async (lessonId: string) => {
     if (!lessonId) {
       console.error('❌ No lesson ID provided for deletion')
@@ -260,7 +269,6 @@ const transformedLessons = data.map((lesson: any) => ({
         if (response.ok) {
           console.log(`✅ Successfully deleted lesson: ${lessonId}`)
           setLessons(lessons.filter(lesson => lesson.id !== lessonId))
-          // Verwijder ook uit selectedLessons als die daar in zit
           setSelectedLessons(prev => prev.filter(id => id !== lessonId))
         } else {
           const errorText = await response.text()
@@ -326,11 +334,10 @@ const transformedLessons = data.map((lesson: any) => ({
     try {
       console.log('📤 Sending to API:', lessonData)
 
-      // Fix content formatting
       let contentString = lessonData.content
       if (typeof contentString === 'string' && contentString.startsWith('{')) {
         try {
-          JSON.parse(contentString) // Check of het valide JSON is
+          JSON.parse(contentString)
           console.log('✅ Content is valid JSON, keeping as is')
         } catch {
           contentString = String(contentString)
@@ -344,24 +351,26 @@ const transformedLessons = data.map((lesson: any) => ({
         console.log('📝 Content set to plain string')
       }
 
+      const moduleIds = lessonData.moduleIds || []
+
       const payload = {
         ...lessonData,
         content: contentString,
         durationMinutes: lessonData.duration,
-        // Zorg dat alle velden aanwezig zijn die de API verwacht
         videoUrl: lessonData.videoUrl || '',
         tags: lessonData.tags || [],
-        order: lessonData.order || 1
+        order: lessonData.order || 1,
+        moduleIds: moduleIds
       }
 
       console.log('🎯 Final payload to API:', payload)
+      console.log('🔗 Module IDs to link:', moduleIds)
 
       let response
       let url = '/api/lessons'
       let method = 'POST'
 
       if (lessonData.id && lessons.find(l => l.id === lessonData.id)) {
-        // Update bestaande lesson
         url = `/api/lessons/${lessonData.id}`
         method = 'PATCH'
         console.log(`🔄 Updating existing lesson: ${lessonData.id}`)
@@ -383,13 +392,12 @@ const transformedLessons = data.map((lesson: any) => ({
         const savedLesson = await response.json()
         console.log('✅ API Response data:', savedLesson)
         
-        // Refresh de lessons lijst - FIXED VERSION
+        // Refresh de lessons lijst
         const refreshResponse = await fetch('/api/lessons')
         if (refreshResponse.ok) {
           const data = await refreshResponse.json()
           console.log('🔄 Refreshed lessons data:', data)
           
-          // FIX: Controleer of data zelf een array is
           if (Array.isArray(data)) {
             const transformedLessons = data.map((lesson: any) => ({
               id: lesson.id || '',
@@ -401,17 +409,22 @@ const transformedLessons = data.map((lesson: any) => ({
               difficulty: lesson.difficulty || 'Beginner',
               type: lesson.type || 'Artikel',
               order: lesson.order || 0,
-              tags: lesson.tags || [],
-              includedInModules: lesson.includedInModules || 0,
+              tags: Array.isArray(lesson.tags) 
+                ? lesson.tags 
+                : typeof lesson.tags === 'string' 
+                  ? JSON.parse(lesson.tags || '[]')
+                  : [],
+              moduleCount: lesson.moduleCount || (lesson.modules ? lesson.modules.length : 0),
+              includedInModules: lesson.moduleCount || lesson.includedInModules || (lesson.modules ? lesson.modules.length : 0),
               includedInCourses: lesson.includedInCourses || 0,
               completionRate: lesson.completionRate || 0,
               createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
-              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0],
+              modules: lesson.modules || []
             }))
             setLessons(transformedLessons)
             console.log(`📊 Loaded ${transformedLessons.length} lessons directly from array`)
           } else if (data.lessons && Array.isArray(data.lessons)) {
-            // Fallback voor oude structuur
             const transformedLessons = data.lessons.map((lesson: any) => ({
               id: lesson.id || '',
               title: lesson.title || 'Untitled Lesson',
@@ -423,11 +436,13 @@ const transformedLessons = data.map((lesson: any) => ({
               type: lesson.type || 'Artikel',
               order: lesson.order || 0,
               tags: lesson.tags || [],
-              includedInModules: lesson.includedInModules || 0,
+              moduleCount: lesson.moduleCount || 0,
+              includedInModules: lesson.includedInModules || lesson.moduleCount || 0,
               includedInCourses: lesson.includedInCourses || 0,
               completionRate: lesson.completionRate || 0,
               createdAt: lesson.createdAt || new Date().toISOString().split('T')[0],
-              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0]
+              updatedAt: lesson.updatedAt || new Date().toISOString().split('T')[0],
+              modules: lesson.modules || []
             }))
             setLessons(transformedLessons)
             console.log(`📊 Loaded ${transformedLessons.length} lessons from data.lessons`)
@@ -436,7 +451,6 @@ const transformedLessons = data.map((lesson: any) => ({
           }
         }
         
-        // Close modals automatisch
         setShowCreateModal(false)
         setEditingLesson(null)
         alert('Les succesvol opgeslagen!')
@@ -559,7 +573,6 @@ const transformedLessons = data.map((lesson: any) => ({
 
       const reorderedLessons = arrayMove(lessons, oldIndex, newIndex)
       
-      // Update order numbers based on new positions
       const updatedLessons = reorderedLessons.map((lesson, index) => ({
         ...lesson,
         order: index + 1,
@@ -568,7 +581,6 @@ const transformedLessons = data.map((lesson: any) => ({
 
       setLessons(updatedLessons)
 
-      // Update order in database
       try {
         const response = await fetch('/api/lessons/reorder', {
           method: 'PATCH',
@@ -764,6 +776,7 @@ const transformedLessons = data.map((lesson: any) => ({
               >
                 <option value="order">Volgorde</option>
                 <option value="title">Titel</option>
+                <option value="moduleCount">Aantal Modules</option>
                 <option value="completionRate">Voltooiing</option>
                 <option value="duration">Duur</option>
                 <option value="updatedAt">Laatst bijgewerkt</option>
@@ -974,20 +987,22 @@ const transformedLessons = data.map((lesson: any) => ({
 
       {/* Modals */}
       {showCreateModal && (
-        <LessonEditor 
+        <LessonModal 
           lesson={null}
           categories={categories}
           lessonTypes={lessonTypes}
+          modules={modules}
           onClose={() => setShowCreateModal(false)}
           onSave={handleSaveLesson}
         />
       )}
 
       {editingLesson && (
-        <LessonEditor 
+        <LessonModal 
           lesson={editingLesson}
           categories={categories}
           lessonTypes={lessonTypes}
+          modules={modules}
           onClose={() => setEditingLesson(null)}
           onSave={handleSaveLesson}
         />

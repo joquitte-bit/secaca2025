@@ -4,6 +4,12 @@
 import { useState, useEffect } from 'react'
 import { Icons } from './Icons'
 
+interface Module {
+  id: string
+  title: string
+  description?: string
+}
+
 interface Lesson {
   id?: number
   title: string
@@ -16,17 +22,20 @@ interface Lesson {
   content?: string
   tags?: string[]
   order?: number
+  modules?: Module[] // ✅ Nieuw: modules array
+  moduleIds?: string[] // ✅ Nieuw: voor form submit
 }
 
 interface LessonModalProps {
   lesson: Lesson | null
   categories: string[]
   lessonTypes: string[]
+  modules: Module[] // ✅ Nieuw: lijst van beschikbare modules
   onClose: () => void
   onSave: (lessonData: any) => void
 }
 
-export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }: LessonModalProps) {
+export function LessonModal({ lesson, categories, lessonTypes, modules, onClose, onSave }: LessonModalProps) {
   const [formData, setFormData] = useState<Lesson>({
     title: '',
     description: '',
@@ -37,7 +46,9 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
     duration: 0,
     content: '',
     tags: [],
-    order: 0
+    order: 0,
+    modules: [], // ✅ Nieuw
+    moduleIds: [] // ✅ Nieuw
   })
 
   const [tagInput, setTagInput] = useState('')
@@ -55,13 +66,17 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
         duration: lesson.duration || 0,
         content: lesson.content || '',
         tags: lesson.tags || [],
-        order: lesson.order || 0
+        order: lesson.order || 0,
+        modules: lesson.modules || [], // ✅ Behoud bestaande modules
+        moduleIds: lesson.modules?.map(m => m.id) || [] // ✅ Extract module IDs
       })
     } else {
       // Nieuwe lesson - bepaal volgende order nummer
       setFormData(prev => ({
         ...prev,
-        order: categories.length > 0 ? categories.length + 1 : 1
+        order: categories.length > 0 ? categories.length + 1 : 1,
+        modules: [], // ✅ Lege modules array
+        moduleIds: [] // ✅ Lege moduleIds array
       }))
     }
   }, [lesson, categories])
@@ -77,7 +92,9 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
         ...formData,
         id: lesson?.id || Date.now(),
         createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
+        updatedAt: new Date().toISOString().split('T')[0],
+        // ✅ Zorg ervoor dat moduleIds worden meegestuurd
+        moduleIds: formData.moduleIds || []
       }
 
       await onSave(lessonData)
@@ -111,6 +128,25 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
       e.preventDefault()
       addTag()
     }
+  }
+
+  // ✅ Nieuw: Module selectie handlers
+  const handleModuleToggle = (moduleId: string) => {
+    setFormData(prev => {
+      const currentModuleIds = prev.moduleIds || []
+      const newModuleIds = currentModuleIds.includes(moduleId)
+        ? currentModuleIds.filter(id => id !== moduleId) // Remove if already selected
+        : [...currentModuleIds, moduleId] // Add if not selected
+      
+      return {
+        ...prev,
+        moduleIds: newModuleIds
+      }
+    })
+  }
+
+  const isModuleSelected = (moduleId: string) => {
+    return (formData.moduleIds || []).includes(moduleId)
   }
 
   return (
@@ -280,6 +316,52 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
             </div>
           </div>
 
+          {/* ✅ NIEUW: Module Selectie */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Koppel aan Modules
+            </label>
+            <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+              <p className="text-sm text-gray-600 mb-3">
+                Selecteer de modules waar deze les aan gekoppeld moet worden:
+              </p>
+              {modules.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Geen modules beschikbaar. Maak eerst modules aan.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {modules.map((module) => (
+                    <label key={module.id} className="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isModuleSelected(module.id)}
+                        onChange={() => handleModuleToggle(module.id)}
+                        disabled={isSubmitting}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          {module.title}
+                        </span>
+                        {module.description && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            {module.description}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-2">
+              <span className="text-sm text-gray-500">
+                {formData.moduleIds?.length || 0} van de {modules.length} modules geselecteerd
+              </span>
+            </div>
+          </div>
+
           {/* Les Content */}
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
@@ -361,6 +443,7 @@ export function LessonModal({ lesson, categories, lessonTypes, onClose, onSave }
               </p>
               <p><strong>Duur:</strong> {formData.duration || 0} minuten</p>
               <p><strong>Moeilijkheid:</strong> {formData.difficulty || 'Beginner'}</p>
+              <p><strong>Modules:</strong> {formData.moduleIds?.length || 0} geselecteerd</p>
             </div>
           </div>
 

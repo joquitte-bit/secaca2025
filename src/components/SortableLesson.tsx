@@ -4,24 +4,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Icons } from './Icons'
+import { Lesson } from '@/types/lesson' // ✅ Import centrale interface
 
-interface Lesson {
-  id: string
-  title: string
-  status: 'Actief' | 'Inactief' | 'Concept'
-  description: string
-  category: string
-  duration: number
-  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
-  type: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
-  order: number
-  tags?: string[]
-  includedInModules: number
-  includedInCourses: number
-  completionRate: number
-  createdAt: string
-  updatedAt: string
-}
 
 interface SortableLessonProps {
   lesson: Lesson
@@ -60,6 +44,9 @@ export function SortableLesson({
     transition,
     opacity: isDragging ? 0.5 : 1,
   }
+
+  // ✅ Gebruik moduleCount als het beschikbaar is, anders fallback naar includedInModules
+  const displayModuleCount = lesson.moduleCount !== undefined ? lesson.moduleCount : lesson.includedInModules
 
   return (
     <div
@@ -126,9 +113,10 @@ export function SortableLesson({
                 <Icons.clock className="w-4 h-4" />
                 <span>{lesson.duration} min</span>
               </span>
+              {/* ✅ CRITICAL FIX: Toon moduleCount in plaats van includedInModules */}
               <span className="flex items-center space-x-1">
                 <Icons.modules className="w-4 h-4" />
-                <span>{lesson.includedInModules} modules</span>
+                <span>{displayModuleCount} modules</span>
               </span>
               <span className="flex items-center space-x-1">
                 <Icons.courses className="w-4 h-4" />
@@ -195,12 +183,10 @@ export function SortableLesson({
               title={lesson.status === 'Actief' ? 'Deactiveer les' : 'Activeer les'}
             >
               {lesson.status === 'Actief' ? (
-                // Gebruik een beschikbare icon voor "uit" of "sluiten"
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               ) : (
-                // Gebruik een beschikbare icon voor "aan" of "actief"
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
