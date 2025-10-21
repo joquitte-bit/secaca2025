@@ -1,25 +1,21 @@
-// 📁 BESTAND: /src/types/lesson.ts
+// src/types/lesson.ts
 export interface Lesson {
-  id: string  // ✅ Consistent houden als string (zoals in Prisma)
+  id: string
   title: string
-  status: 'Actief' | 'Inactief' | 'Concept'
   description: string
+  status: 'Actief' | 'Inactief' | 'Concept'
   category: string
   duration: number
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
-  type: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
-  order: number
+  type?: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
+  order?: number
   tags?: string[]
-  moduleCount?: number
-  includedInModules: number
-  includedInCourses: number
-  completionRate: number
-  createdAt: string
-  updatedAt: string
-  content?: string
   videoUrl?: string
-  modules?: any[]
-  // ✅ Optionele velden voor backward compatibility
-  moduleId?: string | null
-  moduleTitle?: string | null
+  content?: string
+  isFree: boolean // ✅ Verplicht in beide
+  modules: number // ✅ Verplicht in beide
+  quizQuestions: number // ✅ Verplicht in beide
+  completionRate: number // ✅ Verplicht in beide
+  createdAt: string // ✅ Verplicht in beide
+  updatedAt: string // ✅ Verplicht in beide
 }
