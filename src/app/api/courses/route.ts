@@ -5,10 +5,10 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const orgId = searchParams.get('orgId') || 'default-org'
+    const orgId = searchParams.get('orgId') // Geen default value, toon alle courses als geen orgId wordt meegegeven
 
     const courses = await prisma.course.findMany({
-      where: { orgId },
+      where: orgId ? { orgId } : {},
       include: {
         modules: {
           include: {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         order: 0, // Not in schema, default to 0
         createdAt: course.createdAt.toISOString().split('T')[0],
         updatedAt: course.updatedAt.toISOString().split('T')[0],
-        duration: undefined,
+        duration: totalLessons, // Use total lessons as duration indicator
         difficulty: difficulty,
         tags: course.tags ? JSON.parse(course.tags) : [],
         includedModules: course.modules.map(cm => cm.moduleId)
@@ -130,23 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newCourse = await prisma.course.create({
-      data: createData,
-      include: {
-        modules: {
-          include: {
-            module: {
-              include: {
-                lessons: {
-                  include: {
-                    lesson: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        enrollments: true
-      }
+      data: createData
     })
 
     // Create CourseOnModule relations if moduleIds are provided
@@ -162,76 +146,71 @@ export async function POST(request: NextRequest) {
       await prisma.courseOnModule.createMany({
         data: moduleConnections
       })
+    }
 
-      // Reload course with updated modules
-      const updatedCourse = await prisma.course.findUnique({
-        where: { id: newCourse.id },
-        include: {
-          modules: {
-            include: {
-              module: {
-                include: {
-                  lessons: {
-                    include: {
-                      lesson: true
-                    }
+    // Fetch the complete course with all relations for response
+    const completeCourse = await prisma.course.findUnique({
+      where: { id: newCourse.id },
+      include: {
+        modules: {
+          include: {
+            module: {
+              include: {
+                lessons: {
+                  include: {
+                    lesson: true
                   }
                 }
               }
-            },
-            orderBy: {
-              order: 'asc'
             }
           },
-          enrollments: true
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        enrollments: {
+          select: {
+            id: true,
+            progress: true
+          }
         }
-      })
-
-      // Transform the response
-      const totalLessons = updatedCourse!.modules.reduce((acc, courseModule) => {
-        return acc + (courseModule.module.lessons?.length || 0)
-      }, 0)
-
-      const transformedCourse = {
-        id: updatedCourse!.id,
-        title: updatedCourse!.title,
-        description: updatedCourse!.description || '',
-        status: status === 'PUBLISHED' ? 'Actief' : status === 'DRAFT' ? 'Concept' : 'Inactief',
-        students: updatedCourse!.enrollments.length,
-        progress: 0,
-        modules: updatedCourse!.modules.length,
-        category: updatedCourse!.level || '',
-        order: 0,
-        createdAt: updatedCourse!.createdAt.toISOString().split('T')[0],
-        updatedAt: updatedCourse!.updatedAt.toISOString().split('T')[0],
-        duration: undefined,
-        difficulty: level === 'intermediate' ? 'Intermediate' : level === 'expert' ? 'Expert' : 'Beginner',
-        tags: updatedCourse!.tags ? JSON.parse(updatedCourse!.tags) : [],
-        includedModules: updatedCourse!.modules.map(cm => cm.moduleId)
       }
+    })
 
-      return NextResponse.json(transformedCourse, { status: 201 })
+    if (!completeCourse) {
+      throw new Error('Failed to fetch created course')
     }
 
-    // Transform the response for course without modules
+    // Calculate total lessons for duration
+    const totalLessons = completeCourse.modules.reduce((acc, courseModule) => {
+      return acc + (courseModule.module.lessons?.length || 0)
+    }, 0)
+
+    // Calculate average progress
+    const averageProgress = completeCourse.enrollments.length > 0 
+      ? Math.round(completeCourse.enrollments.reduce((acc, enrollment) => acc + enrollment.progress, 0) / completeCourse.enrollments.length)
+      : 0
+
+    // Transform the response
     const transformedCourse = {
-      id: newCourse.id,
-      title: newCourse.title,
-      description: newCourse.description || '',
+      id: completeCourse.id,
+      title: completeCourse.title,
+      description: completeCourse.description || '',
       status: status === 'PUBLISHED' ? 'Actief' : status === 'DRAFT' ? 'Concept' : 'Inactief',
-      students: 0,
-      progress: 0,
-      modules: 0,
-      category: newCourse.level || '',
+      students: completeCourse.enrollments.length,
+      progress: averageProgress,
+      modules: completeCourse.modules.length,
+      category: completeCourse.level || '',
       order: 0,
-      createdAt: newCourse.createdAt.toISOString().split('T')[0],
-      updatedAt: newCourse.updatedAt.toISOString().split('T')[0],
-      duration: undefined,
+      createdAt: completeCourse.createdAt.toISOString().split('T')[0],
+      updatedAt: completeCourse.updatedAt.toISOString().split('T')[0],
+      duration: totalLessons,
       difficulty: level === 'intermediate' ? 'Intermediate' : level === 'expert' ? 'Expert' : 'Beginner',
-      tags: newCourse.tags ? JSON.parse(newCourse.tags) : [],
-      includedModules: []
+      tags: completeCourse.tags ? JSON.parse(completeCourse.tags) : [],
+      includedModules: completeCourse.modules.map(cm => cm.moduleId)
     }
 
+    console.log('✅ [API] Course created successfully:', transformedCourse.title)
     return NextResponse.json(transformedCourse, { status: 201 })
   } catch (error) {
     console.error('❌ [API] Error creating course:', error)

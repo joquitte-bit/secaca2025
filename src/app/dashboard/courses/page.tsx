@@ -14,10 +14,12 @@ interface Course {
   modules: number
   duration: number
   students: number
-  completionRate: number
+  progress: number // Changed from completionRate to match API
   order: number
   tags: string[]
+  createdAt: string
   updatedAt: string
+  includedModules: string[] // Added to match API
 }
 
 export default function CoursesPage() {
@@ -27,60 +29,54 @@ export default function CoursesPage() {
   const [statusFilter, setStatusFilter] = useState('Alle statussen')
   const [categoryFilter, setCategoryFilter] = useState('Alle categorieën')
   const [difficultyFilter, setDifficultyFilter] = useState('Alle niveaus')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data - IDENTIEKE STRUCTUUR ALS LESSONS
+  // VERVANG DE MOCK DATA MET ECHTE API CALL
   useEffect(() => {
-    const mockCourses: Course[] = [
-      {
-        id: '1',
-        title: 'Security Awareness Training',
-        description: 'Complete security awareness training voor alle medewerkers',
-        status: 'Actief',
-        category: 'Security',
-        difficulty: 'Beginner',
-        modules: 3,
-        duration: 135,
-        students: 45,
-        completionRate: 78,
-        order: 1,
-        tags: ['security', 'awareness'],
-        updatedAt: '2025-10-21T08:08:29.900Z'
-      },
-      {
-        id: '2',
-        title: 'Data Privacy Fundamentals',
-        description: 'Grondbeginselen van dataprivacy en GDPR compliance',
-        status: 'Actief',
-        category: 'Compliance',
-        difficulty: 'Intermediate',
-        modules: 5,
-        duration: 180,
-        students: 32,
-        completionRate: 65,
-        order: 2,
-        tags: ['privacy', 'gdpr'],
-        updatedAt: '2025-10-20T14:30:00.000Z'
-      },
-      {
-        id: '3',
-        title: 'Advanced Cybersecurity',
-        description: 'Geavanceerde cybersecurity technieken voor experts',
-        status: 'Concept',
-        category: 'Security',
-        difficulty: 'Expert',
-        modules: 8,
-        duration: 240,
-        students: 12,
-        completionRate: 40,
-        order: 3,
-        tags: ['cybersecurity', 'advanced'],
-        updatedAt: '2025-10-19T10:15:00.000Z'
-      }
-    ]
-    setCourses(mockCourses)
+    fetchCourses()
   }, [])
 
-  // Filter courses - IDENTIEKE LOGICA ALS LESSONS
+const fetchCourses = async () => {
+  try {
+    setIsLoading(true)
+    setError(null)
+    
+    console.log('🔄 Fetching courses from API...')
+    
+    // Test EERST zonder orgId om alle courses te zien
+    const testUrl = '/api/courses'
+    console.log('🔗 API URL:', testUrl)
+    
+    const response = await fetch(testUrl)
+    
+    console.log('📡 API Response status:', response.status)
+    console.log('📡 API Response ok:', response.ok)
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch courses: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    console.log('📊 Courses data received:', data)
+    console.log('🔍 Number of courses:', data.length)
+    
+    if (data.length > 0) {
+      console.log('📝 First course:', data[0])
+      console.log('🏷️ Course orgId:', data[0].orgId) // Als dit veld bestaat
+    }
+    
+    setCourses(data)
+    
+  } catch (err) {
+    console.error('❌ Error fetching courses:', err)
+    setError('Failed to load courses: ' + (err instanceof Error ? err.message : 'Unknown error'))
+  } finally {
+    setIsLoading(false)
+  }
+}
+
+  // Filter courses - AANGEPAST VOOR NIEUWE DATA STRUCTUUR
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -107,7 +103,7 @@ export default function CoursesPage() {
     )
   }
 
-  // IDENTIEKE HELPER FUNCTIES ALS LESSONS
+  // IDENTIEKE HELPER FUNCTIES
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Actief': return 'bg-green-100 text-green-800'
@@ -130,11 +126,47 @@ export default function CoursesPage() {
     return new Date(dateString).toLocaleDateString('nl-NL')
   }
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Courses laden...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+if (error) {
+  return (
+    <div className="min-h-screen bg-gray-50 w-full p-8">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+        <div className="flex items-center">
+          {/* Gebruik een bestaand icoon */}
+          <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
+          <h3 className="text-lg font-medium text-red-800">Error</h3>
+        </div>
+        <p className="mt-2 text-red-700">{error}</p>
+        <button 
+          onClick={fetchCourses}
+          className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+        >
+          Probeer opnieuw
+        </button>
+      </div>
+    </div>
+  )
+}
+
   return (
     <div className="min-h-screen bg-gray-50 w-full">
-      {/* MAIN CONTENT - 100% BREEDTE EN UITGELIJND MET NAVBAR */}
+      {/* MAIN CONTENT */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* HEADER - EXACT HETZELFDE ALS LESSONS */}
+        {/* HEADER */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -147,7 +179,7 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* STATISTICS CARDS - EXACT HETZELFDE ALS LESSONS */}
+        {/* STATISTICS CARDS - AANGEPAST VOOR NIEUWE DATA */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <div className="flex items-center">
@@ -181,9 +213,9 @@ export default function CoursesPage() {
                 <Icons.modules className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
+                <p className="text-sm font-medium text-gray-600">Gem. Voortgang</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {courses.length > 0 ? Math.round(courses.reduce((acc, course) => acc + course.completionRate, 0) / courses.length) : 0}%
+                  {courses.length > 0 ? Math.round(courses.reduce((acc, course) => acc + course.progress, 0) / courses.length) : 0}%
                 </p>
               </div>
             </div>
@@ -204,7 +236,8 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* SEARCH AND FILTERS - EXACT HETZELFDE ALS LESSONS */}
+        {/* REST VAN JE CODE BLIJFT HETZELFDE */}
+        {/* SEARCH AND FILTERS */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -262,35 +295,7 @@ export default function CoursesPage() {
             </div>
           </div>
 
-          {/* BULK ACTIONS - EXACT HETZELFDE ALS LESSONS */}
-          {selectedCourses.length > 0 && (
-            <div className="bg-blue-50 px-4 py-3 border-b border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-blue-700">
-                    {selectedCourses.length} courses geselecteerd
-                  </span>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Activeren
-                  </button>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Deactiveren
-                  </button>
-                  <button className="text-sm text-red-600 hover:text-red-800 font-medium">
-                    Verwijderen
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setSelectedCourses([])}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Selectie opheffen
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TABLE - EXACT HETZELFDE ALS LESSONS */}
+          {/* TABLE - AANGEPAST VOOR NIEUWE DATA */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -322,7 +327,7 @@ export default function CoursesPage() {
                     Studenten
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Voltooid
+                    Voortgang
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Laatst bijgewerkt
@@ -382,10 +387,10 @@ export default function CoursesPage() {
                         <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
                           <div 
                             className="h-2 rounded-full bg-gray-900 transition-all duration-500"
-                            style={{ width: `${course.completionRate}%` }}
+                            style={{ width: `${course.progress}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm text-gray-900">{course.completionRate}%</span>
+                        <span className="text-sm text-gray-900">{course.progress}%</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -414,7 +419,7 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* DRAG & DROP INFO - EXACT HETZELFDE ALS LESSONS */}
+        {/* DRAG & DROP INFO */}
         <div className="text-center text-sm text-gray-500 mt-4">
           Sleep courses om volgorde aan te passen
         </div>

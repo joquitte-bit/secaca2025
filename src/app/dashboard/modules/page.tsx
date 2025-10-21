@@ -1,4 +1,4 @@
-// 📁 BESTAND: /src/app/dashboard/module/page.tsx
+// src/app/dashboard/modules/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -11,76 +11,61 @@ interface Module {
   status: 'Actief' | 'Inactief' | 'Concept'
   category: string
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
-  lessons: number
-  duration: number
+  lessons: number // Aantal lessons
+  duration: number // Totale duur in minuten
   order: number
-  completionRate: number
-  courseCount: number
+  courseCount: number // Aantal courses waarin module zit
+  completionRate: number // Altijd 0 voor nu
   tags: string[]
+  createdAt: string
   updatedAt: string
 }
 
-export default function ModulePage() {
+export default function ModulesPage() {
   const [modules, setModules] = useState<Module[]>([])
   const [selectedModules, setSelectedModules] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('Alle statussen')
   const [categoryFilter, setCategoryFilter] = useState('Alle categorieën')
   const [difficultyFilter, setDifficultyFilter] = useState('Alle niveaus')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data - IDENTIEKE STRUCTUUR ALS LESSONS & COURSES
+  // VERVANG MOCK DATA MET ECHTE API CALL - ZELFDE ALS COURSES
   useEffect(() => {
-    const mockModules: Module[] = [
-      {
-        id: '1',
-        title: 'Phishing Awareness',
-        description: 'Herkennen en voorkomen van phishing aanvallen',
-        status: 'Actief',
-        category: 'Security',
-        difficulty: 'Beginner',
-        lessons: 5,
-        duration: 45,
-        order: 1,
-        completionRate: 85,
-        courseCount: 2,
-        tags: ['phishing', 'security'],
-        updatedAt: '2025-10-21T08:08:29.900Z'
-      },
-      {
-        id: '2',
-        title: 'Data Privacy',
-        description: 'Begrijpen en implementeren van dataprivacy principes',
-        status: 'Actief',
-        category: 'Compliance',
-        difficulty: 'Intermediate',
-        lessons: 8,
-        duration: 60,
-        order: 2,
-        completionRate: 72,
-        courseCount: 3,
-        tags: ['privacy', 'gdpr'],
-        updatedAt: '2025-10-20T14:30:00.000Z'
-      },
-      {
-        id: '3',
-        title: 'Advanced Threat Analysis',
-        description: 'Geavanceerde technieken voor bedreigingsanalyse',
-        status: 'Concept',
-        category: 'Security',
-        difficulty: 'Expert',
-        lessons: 12,
-        duration: 120,
-        order: 3,
-        completionRate: 45,
-        courseCount: 1,
-        tags: ['threat', 'analysis', 'advanced'],
-        updatedAt: '2025-10-19T10:15:00.000Z'
-      }
-    ]
-    setModules(mockModules)
+    fetchModules()
   }, [])
 
-  // Filter modules - IDENTIEKE LOGICA ALS LESSONS & COURSES
+  const fetchModules = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      console.log('🔄 Fetching modules from API...')
+      
+      const response = await fetch('/api/modules')
+      
+      console.log('📡 API Response status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch modules: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('📊 Modules data received:', data)
+      console.log('🔍 Number of modules:', data.length)
+      
+      setModules(data)
+      
+    } catch (err) {
+      console.error('❌ Error fetching modules:', err)
+      setError('Failed to load modules: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Filter modules - ZELFDE LOGICA ALS COURSES
   const filteredModules = modules.filter(module => {
     const matchesSearch = module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          module.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -107,7 +92,7 @@ export default function ModulePage() {
     )
   }
 
-  // IDENTIEKE HELPER FUNCTIES ALS LESSONS & COURSES
+  // HELPER FUNCTIES - ZELFDE ALS COURSES
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Actief': return 'bg-green-100 text-green-800'
@@ -130,16 +115,50 @@ export default function ModulePage() {
     return new Date(dateString).toLocaleDateString('nl-NL')
   }
 
+  // Loading state - ZELFDE ALS COURSES
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Modules laden...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state - ZELFDE ALS COURSES
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+          <div className="flex items-center">
+            <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
+            <h3 className="text-lg font-medium text-red-800">Error</h3>
+          </div>
+          <p className="mt-2 text-red-700">{error}</p>
+          <button 
+            onClick={fetchModules}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 w-full">
-      {/* MAIN CONTENT - 100% BREEDTE EN UITGELIJND MET NAVBAR */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* HEADER - EXACT HETZELFDE ALS LESSONS & COURSES */}
+        {/* HEADER - ZELFDE ALS COURSES */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Modules</h1>
-              <p className="text-gray-600">Beheer alle training modules</p>
+              <p className="text-gray-600">Beheer alle lesmodules</p>
             </div>
             <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
               Nieuwe Module
@@ -147,7 +166,7 @@ export default function ModulePage() {
           </div>
         </div>
 
-        {/* STATISTICS CARDS - EXACT HETZELFDE ALS LESSONS & COURSES */}
+        {/* STATISTICS CARDS - AANGEPAST VOOR MODULES */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <div className="flex items-center">
@@ -181,9 +200,9 @@ export default function ModulePage() {
                 <Icons.lessons className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
-                <p className="text-2xl font-bold text-gray-90">
-                  {modules.length > 0 ? Math.round(modules.reduce((acc, module) => acc + module.completionRate, 0) / modules.length) : 0}%
+                <p className="text-sm font-medium text-gray-600">Totaal Lessons</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {modules.reduce((acc, module) => acc + module.lessons, 0)}
                 </p>
               </div>
             </div>
@@ -195,16 +214,17 @@ export default function ModulePage() {
                 <Icons.courses className="w-6 h-6 text-orange-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Totale Duur</p>
+                <p className="text-sm font-medium text-gray-600">Gem. Duur</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {modules.reduce((acc, module) => acc + module.duration, 0)} min
+                  {modules.length > 0 ? Math.round(modules.reduce((acc, module) => acc + module.duration, 0) / modules.length) : 0} min
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* SEARCH AND FILTERS - EXACT HETZELFDE ALS LESSONS & COURSES */}
+        {/* REST VAN DE CODE BLIJFT HETZELFDE ALS JE ORIGINELE MODULES PAGE */}
+        {/* SEARCH AND FILTERS */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -262,35 +282,7 @@ export default function ModulePage() {
             </div>
           </div>
 
-          {/* BULK ACTIONS - EXACT HETZELFDE ALS LESSONS & COURSES */}
-          {selectedModules.length > 0 && (
-            <div className="bg-blue-50 px-4 py-3 border-b border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-blue-700">
-                    {selectedModules.length} modules geselecteerd
-                  </span>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Activeren
-                  </button>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Deactiveren
-                  </button>
-                  <button className="text-sm text-red-600 hover:text-red-800 font-medium">
-                    Verwijderen
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setSelectedModules([])}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Selectie opheffen
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TABLE - EXACT HETZELFDE ALS LESSONS & COURSES */}
+          {/* TABLE - AANGEPAST VOOR NIEUWE DATA STRUCTUUR */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -322,7 +314,7 @@ export default function ModulePage() {
                     Courses
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Voltooid
+                    Volgorde
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Laatst bijgewerkt
@@ -377,16 +369,8 @@ export default function ModulePage() {
                         {module.courseCount}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div 
-                            className="h-2 rounded-full bg-gray-900 transition-all duration-500"
-                            style={{ width: `${module.completionRate}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-900">{module.completionRate}%</span>
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {module.order}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(module.updatedAt)}
@@ -414,7 +398,6 @@ export default function ModulePage() {
           </div>
         </div>
 
-        {/* DRAG & DROP INFO - EXACT HETZELFDE ALS LESSONS & COURSES */}
         <div className="text-center text-sm text-gray-500 mt-4">
           Sleep modules om volgorde aan te passen
         </div>

@@ -2,67 +2,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const orgId = searchParams.get('orgId')
-
-    console.log('🔍 Fetching lessons with modules for org:', orgId)
-
-    const whereClause = orgId ? { orgId } : {}
-
-    // Haal lessons op met hun modules via de junction table
+    console.log('🔄 [API] Fetching lessons...')
+    
     const lessons = await prisma.lesson.findMany({
-      where: whereClause,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        order: true,
+        durationMinutes: true,
+        status: true,
+        difficulty: true,
+        category: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
         modules: {
-          include: {
-            module: {
-              select: {
-                id: true,
-                title: true,
-                description: true,
-                order: true,
-                category: true,
-                status: true,
-                duration: true,
-                difficulty: true,
-                tags: true
-              }
-            }
-          },
-          orderBy: {
-            module: {
-              order: 'asc'
-            }
+          select: {
+            id: true
+          }
+        },
+        quizQuestions: {
+          select: {
+            id: true
           }
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        order: 'asc'
       }
     })
 
-    // Transformeer de data voor de frontend
-    const transformedLessons = lessons.map(lesson => {
-      // Map module status van database enum naar frontend string
-      const modulesWithStatus = lesson.modules.map(lessonModule => ({
-        ...lessonModule.module,
-        status: lessonModule.module.status === 'ACTIEF' ? 'Actief' : 
-                lessonModule.module.status === 'INACTIEF' ? 'Inactief' : 'Concept'
-      }))
+    console.log(`✅ [API] Found ${lessons.length} lessons`)
 
-      return {
-        ...lesson,
-        modules: modulesWithStatus,
-        moduleCount: lesson.modules.length
-      }
-    })
+    // Transform for frontend - GEBRUIK CORRECTE STATUS VALUES
+    const transformedLessons = lessons.map((lesson) => ({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description || '',
+      order: lesson.order,
+      duration: lesson.durationMinutes || 0,
+      isFree: false, // Placeholder, bestaat niet in schema
+      status: lesson.status === 'PUBLISHED' ? 'Actief' : 
+              lesson.status === 'ARCHIVED' ? 'Inactief' : 'Concept', // Gebruikzelfde values als courses
+      difficulty: (lesson.difficulty as 'Beginner' | 'Intermediate' | 'Expert') || 'Beginner',
+      category: lesson.category || 'Uncategorized',
+      tags: lesson.tags ? JSON.parse(lesson.tags) : [],
+      modules: lesson.modules.length,
+      quizQuestions: lesson.quizQuestions.length,
+      completionRate: 0,
+      createdAt: lesson.createdAt.toISOString().split('T')[0],
+      updatedAt: lesson.updatedAt.toISOString().split('T')[0],
+    }))
 
-    console.log(`✅ ${transformedLessons.length} lessons loaded`)
+    console.log(`✅ [API] ${transformedLessons.length} lessons transformed`)
+    
     return NextResponse.json(transformedLessons)
   } catch (error) {
-    console.error('Lessons fetch error:', error)
+    console.error('❌ [API] Error fetching lessons:', error)
     return NextResponse.json(
       { error: 'Failed to fetch lessons' },
       { status: 500 }

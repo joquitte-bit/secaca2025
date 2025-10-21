@@ -1,4 +1,4 @@
-// 📁 BESTAND: /src/app/dashboard/users/page.tsx
+// src/app/dashboard/users/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,15 +8,14 @@ interface User {
   id: string
   name: string
   email: string
-  role: 'Admin' | 'Manager' | 'User' | 'Viewer'
+  role: string
   status: 'Actief' | 'Inactief' | 'Uitgenodigd'
-  department: string
-  completedCourses: number
-  totalCourses: number
-  progress: number
-  lastActive: string
-  joinedAt: string
-  tags: string[]
+  lastLogin: string
+  enrollments: number
+  quizAttempts: number
+  completionRate: number
+  createdAt: string
+  updatedAt: string
 }
 
 export default function UsersPage() {
@@ -25,66 +24,51 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('Alle statussen')
   const [roleFilter, setRoleFilter] = useState('Alle rollen')
-  const [departmentFilter, setDepartmentFilter] = useState('Alle afdelingen')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data - IDENTIEKE STRUCTUUR ALS ANDERE PAGINA'S
+  // VERVANG MOCK DATA MET ECHTE API CALL
   useEffect(() => {
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        name: 'Jan Jansen',
-        email: 'jan.jansen@bedrijf.nl',
-        role: 'Admin',
-        status: 'Actief',
-        department: 'IT',
-        completedCourses: 12,
-        totalCourses: 15,
-        progress: 80,
-        lastActive: '2025-10-21T08:08:29.900Z',
-        joinedAt: '2025-01-15T00:00:00.000Z',
-        tags: ['admin', 'it']
-      },
-      {
-        id: '2',
-        name: 'Marie van Dijk',
-        email: 'marie.vandijk@bedrijf.nl',
-        role: 'Manager',
-        status: 'Actief',
-        department: 'HR',
-        completedCourses: 8,
-        totalCourses: 10,
-        progress: 65,
-        lastActive: '2025-10-20T14:30:00.000Z',
-        joinedAt: '2025-02-10T00:00:00.000Z',
-        tags: ['manager', 'hr']
-      },
-      {
-        id: '3',
-        name: 'Peter de Vries',
-        email: 'peter.devries@bedrijf.nl',
-        role: 'User',
-        status: 'Uitgenodigd',
-        department: 'Sales',
-        completedCourses: 0,
-        totalCourses: 5,
-        progress: 0,
-        lastActive: '2025-10-19T10:15:00.000Z',
-        joinedAt: '2025-10-18T00:00:00.000Z',
-        tags: ['sales', 'new']
-      }
-    ]
-    setUsers(mockUsers)
+    fetchUsers()
   }, [])
 
-  // Filter users - IDENTIEKE LOGICA ALS ANDERE PAGINA'S
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      console.log('🔄 Fetching users from API...')
+      
+      const response = await fetch('/api/users')
+      
+      console.log('📡 API Response status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('📊 Users data received:', data)
+      console.log('🔍 Number of users:', data.length)
+      
+      setUsers(data)
+      
+    } catch (err) {
+      console.error('❌ Error fetching users:', err)
+      setError('Failed to load users: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Filter users
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'Alle statussen' || user.status === statusFilter
     const matchesRole = roleFilter === 'Alle rollen' || user.role === roleFilter
-    const matchesDepartment = departmentFilter === 'Alle afdelingen' || user.department === departmentFilter
     
-    return matchesSearch && matchesStatus && matchesRole && matchesDepartment
+    return matchesSearch && matchesStatus && matchesRole
   })
 
   const toggleUserSelection = (userId: string) => {
@@ -103,22 +87,21 @@ export default function UsersPage() {
     )
   }
 
-  // IDENTIEKE HELPER FUNCTIES ALS ANDERE PAGINA'S
+  // Helper functions
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Actief': return 'bg-green-100 text-green-800'
       case 'Inactief': return 'bg-red-100 text-red-800'
-      case 'Uitgenodigd': return 'bg-yellow-100 text-yellow-800'
+      case 'Uitgenodigd': return 'bg-blue-100 text-blue-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Admin': return 'bg-purple-100 text-purple-800'
-      case 'Manager': return 'bg-blue-100 text-blue-800'
-      case 'User': return 'bg-green-100 text-green-800'
-      case 'Viewer': return 'bg-gray-100 text-gray-800'
+      case 'ADMIN': return 'bg-purple-100 text-purple-800'
+      case 'TEACHER': return 'bg-blue-100 text-blue-800'
+      case 'USER': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -127,11 +110,54 @@ export default function UsersPage() {
     return new Date(dateString).toLocaleDateString('nl-NL')
   }
 
+  const formatRole = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return 'Beheerder'
+      case 'TEACHER': return 'Docent'
+      case 'USER': return 'Gebruiker'
+      default: return role
+    }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Gebruikers laden...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+          <div className="flex items-center">
+            <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
+            <h3 className="text-lg font-medium text-red-800">Error</h3>
+          </div>
+          <p className="mt-2 text-red-700">{error}</p>
+          <button 
+            onClick={fetchUsers}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 w-full">
-      {/* MAIN CONTENT - 100% BREEDTE EN UITGELIJND MET NAVBAR */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* HEADER - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        {/* HEADER */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -144,7 +170,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* STATISTICS CARDS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        {/* STATISTICS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <div className="flex items-center">
@@ -178,9 +204,9 @@ export default function UsersPage() {
                 <Icons.courses className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
+                <p className="text-sm font-medium text-gray-600">Gem. Inschrijvingen</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + user.progress, 0) / users.length) : 0}%
+                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + user.enrollments, 0) / users.length) : 0}
                 </p>
               </div>
             </div>
@@ -189,19 +215,19 @@ export default function UsersPage() {
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
             <div className="flex items-center">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <Icons.modules className="w-6 h-6 text-orange-600" />
+                <Icons.document className="w-6 h-6 text-orange-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Voltooide Courses</p>
+                <p className="text-sm font-medium text-gray-600">Totaal Quizzen</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.reduce((acc, user) => acc + user.completedCourses, 0)}
+                  {users.reduce((acc, user) => acc + user.quizAttempts, 0)}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* SEARCH AND FILTERS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        {/* SEARCH AND FILTERS */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -236,21 +262,9 @@ export default function UsersPage() {
                   onChange={(e) => setRoleFilter(e.target.value)}
                 >
                   <option>Alle rollen</option>
-                  <option>Admin</option>
-                  <option>Manager</option>
-                  <option>User</option>
-                  <option>Viewer</option>
-                </select>
-
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                >
-                  <option>Alle afdelingen</option>
-                  {Array.from(new Set(users.map(u => u.department))).map(department => (
-                    <option key={department} value={department}>{department}</option>
-                  ))}
+                  <option>ADMIN</option>
+                  <option>TEACHER</option>
+                  <option>USER</option>
                 </select>
               </div>
               
@@ -260,35 +274,7 @@ export default function UsersPage() {
             </div>
           </div>
 
-          {/* BULK ACTIONS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
-          {selectedUsers.length > 0 && (
-            <div className="bg-blue-50 px-4 py-3 border-b border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-blue-700">
-                    {selectedUsers.length} gebruikers geselecteerd
-                  </span>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Activeren
-                  </button>
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Deactiveren
-                  </button>
-                  <button className="text-sm text-red-600 hover:text-red-800 font-medium">
-                    Verwijderen
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setSelectedUsers([])}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Selectie opheffen
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TABLE - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+          {/* TABLE */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -311,16 +297,16 @@ export default function UsersPage() {
                     Rol
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Afdeling
+                    Inschrijvingen
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Voltooide Courses
+                    Quizzen
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Voortgang
+                    Laatste Login
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Laatst actief
+                    Aangemaakt
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acties
@@ -351,31 +337,26 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                        {user.role}
+                        {formatRole(user.role)}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{user.department}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
                         <Icons.courses className="w-4 h-4 text-gray-400 mr-1" />
-                        {user.completedCourses}/{user.totalCourses}
+                        {user.enrollments}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div 
-                            className="h-2 rounded-full bg-gray-900 transition-all duration-500"
-                            style={{ width: `${user.progress}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-900">{user.progress}%</span>
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Icons.document className="w-4 h-4 text-gray-400 mr-1" />
+                        {user.quizAttempts}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(user.lastActive)}
+                      {user.lastLogin}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(user.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
@@ -400,9 +381,8 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* DRAG & DROP INFO - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
         <div className="text-center text-sm text-gray-500 mt-4">
-          Sleep gebruikers om volgorde aan te passen
+          {selectedUsers.length > 0 && `${selectedUsers.length} gebruikers geselecteerd`}
         </div>
       </div>
     </div>

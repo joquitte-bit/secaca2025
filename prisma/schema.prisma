@@ -26,13 +26,13 @@ enum CourseStatus {
 }
 
 enum ModuleStatus {
-  Concept
-  Actief
-  Inactief
+  DRAFT
+  Actief      // ← Kleine letters zoals in database
+  Inactief    // ← Kleine letters zoals in database
 }
 
 enum Difficulty {
-  Beginner
+  Beginner    // ← Kleine letters zoals in database  
   Intermediate
   Expert
 }
@@ -143,19 +143,19 @@ model Module {
   description String?
   order       Int           @default(0)
   
-  // NIEUWE VELDEN voor SECACA modules - GECORRIGEERD
+  // ✅ TIJDELIJK: Strings i.p.v. enums voor fix
   category    String?       @default("Uncategorized")
-  status      ModuleStatus? @default(Concept) // ✅ Gecorrigeerd: Concept ipv CONCEPT
+  status      String?       @default("DRAFT")
   duration    Int?          @default(0)
-  difficulty  Difficulty?   @default(Beginner) // ✅ Gecorrigeerd: Beginner ipv BEGINNER
-  tags        String?       // JSON string voor SQLite compatibiliteit
+  difficulty  String?       @default("BEGINNER")
+  tags        String?
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   // Relations
-  lessons LessonOnModule[]  // ✅ Many-to-many via junction table
-  courses CourseOnModule[]  // ✅ Many-to-many met courses
+  lessons LessonOnModule[]
+  courses CourseOnModule[]
 
   @@map("modules")
 }
