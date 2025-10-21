@@ -4,15 +4,19 @@ import { PrismaClient, LessonType, UserRole, CourseStatus, LessonStatus } from '
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding database with complete schema...')
+  console.log('🌱 Starting seed...')
   
   try {
-    // Cleanup (in juiste volgorde van dependencies)
+    // Cleanup in de juiste volgorde (vanwege foreign keys)
+    console.log('🧹 Cleaning up existing data...')
+    
     await prisma.auditLog.deleteMany()
     await prisma.certificate.deleteMany()
     await prisma.quizAttempt.deleteMany()
     await prisma.quizQuestion.deleteMany()
     await prisma.enrollment.deleteMany()
+    await prisma.lessonOnModule.deleteMany()
+    await prisma.courseOnModule.deleteMany()
     await prisma.lesson.deleteMany()
     await prisma.module.deleteMany()
     await prisma.course.deleteMany()
@@ -21,288 +25,215 @@ async function main() {
     await prisma.organization.deleteMany()
     await prisma.reportSnapshot.deleteMany()
 
+    console.log('✅ Database cleaned')
+
     // 1. Maak organization
     const org = await prisma.organization.create({
       data: {
         name: 'Demo Bedrijf BV',
         slug: 'demo-bedrijf',
-        trialEndsAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 dagen trial
       }
     })
-    console.log('✅ Organization created:', org.name)
+    console.log('✅ Organization created')
 
-    // 2. Maak users met verschillende roles
-    const admin = await prisma.user.create({
+    // 2. Maak admin user
+    await prisma.user.create({
       data: {
         email: 'admin@demo-bedrijf.nl',
-        name: 'Sanne Admin',
+        name: 'Admin User',
         role: UserRole.ADMIN,
         orgId: org.id
       }
     })
+    console.log('✅ Admin user created')
 
-    const manager = await prisma.user.create({
-      data: {
-        email: 'manager@demo-bedrijf.nl',
-        name: 'Thomas Manager',
-        role: UserRole.MANAGER,
-        orgId: org.id
-      }
-    })
-
-    const learner1 = await prisma.user.create({
-      data: {
-        email: 'medewerker1@demo-bedrijf.nl',
-        name: 'Lisa Medewerker',
-        role: UserRole.LEARNER,
-        orgId: org.id
-      }
-    })
-
-    const learner2 = await prisma.user.create({
-      data: {
-        email: 'medewerker2@demo-bedrijf.nl',
-        name: 'Mike Medewerker',
-        role: UserRole.LEARNER,
-        orgId: org.id
-      }
-    })
-    console.log('✅ Users created with roles')
-
-    // 3. Maak subscription
-    await prisma.subscription.create({
-      data: {
-        orgId: org.id,
-        stripeSubId: 'sub_demo_123',
-        plan: 'standard',
-        status: 'active',
-        seats: 10,
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      }
-    })
-    console.log('✅ Subscription created')
-
-    // 4. Maak courses volgens je specificatie
-// Vervang alle lesson creaties met de juiste enum waarden:
-
-const cybersecurityCourse = await prisma.course.create({
-  data: {
-    title: 'Basis Cybersecurity voor Medewerkers (NIS2-ready)',
-    slug: 'basis-cybersecurity',
-    description: 'Leer de basisprincipes van cybersecurity en bescherm je organisatie tegen digitale dreigingen',
-    summary: 'Complete basis training voor cybersecurity awareness',
-    level: 'beginner',
-    tags: JSON.stringify(['NIS2', 'AVG', 'Wachtwoorden', 'Phishing', 'Data']),
-    status: CourseStatus.PUBLISHED,
-    orgId: org.id,
-    modules: {
-      create: [
-        {
-          title: 'Wachtwoorden & MFA',
-          order: 1,
-          lessons: {
-            create: [
-              {
-                title: 'Introductie Wachtwoordbeveiliging',
-                description: 'Leer waarom sterke wachtwoorden belangrijk zijn en hoe je ze maakt',
-                type: LessonType.TEXT,
-                content: JSON.stringify({ text: 'Leer waarom sterke wachtwoorden belangrijk zijn en hoe je ze maakt...' }),
-                order: 1,
-                durationMinutes: 10,
-                status: 'PUBLISHED', // ✅ Gebruik string waarde
-                difficulty: 'beginner',
-                tags: JSON.stringify(['wachtwoorden', 'basis']),
-                category: 'Security Basics'
-              },
-              {
-                title: 'Video: MFA Uitleg',
-                description: 'Uitleg over Multi-Factor Authenticatie',
-                type: LessonType.VIDEO,
-                content: JSON.stringify({ videoUrl: 'https://example.com/video/mfa-uitleg' }),
-                order: 2,
-                durationMinutes: 5,
-                status: 'PUBLISHED', // ✅ Gebruik string waarde
-                difficulty: 'beginner',
-                tags: JSON.stringify(['mfa', 'authenticatie']),
-                category: 'Technical Security'
-              },
-              {
-                title: 'Quiz: Wachtwoord Kennis',
-                description: 'Test je kennis over wachtwoordbeveiliging',
-                type: LessonType.QUIZ,
-                content: JSON.stringify({ description: 'Test je kennis over wachtwoordbeveiliging' }),
-                order: 3,
-                durationMinutes: 15,
-                status: 'PUBLISHED', // ✅ Gebruik string waarde
-                difficulty: 'beginner',
-                tags: JSON.stringify(['quiz', 'wachtwoorden']),
-                category: 'Security Basics'
-              }
-            ]
-          }
-        },
-        {
-          title: 'E-mail & Phishing',
-          order: 2,
-          lessons: {
-            create: [
-              {
-                title: 'Phishing Herkennen',
-                description: 'Leer de signalen van phishing emails herkennen',
-                type: LessonType.TEXT,
-                content: JSON.stringify({ text: 'Leer de signalen van phishing emails herkennen...' }),
-                order: 1,
-                durationMinutes: 15,
-                status: 'PUBLISHED', // ✅ Gebruik string waarde
-                difficulty: 'beginner',
-                tags: JSON.stringify(['phishing', 'email']),
-                category: 'Security Basics'
-              }
-            ]
-          }
-        }
-      ]
-    }
-  }
-})
-    console.log('✅ Cybersecurity course created with modules and lessons')
-
-    // 5. Maak quiz questions voor de quiz lesson
-    const quizLesson = await prisma.lesson.findFirst({
-      where: { type: LessonType.QUIZ }
-    })
-
-    if (quizLesson) {
-      await prisma.quizQuestion.create({
+    // 3. Maak 4 STANDALONE lessons
+    const lessons = await Promise.all([
+      prisma.lesson.create({
         data: {
-          lessonId: quizLesson.id,
-          prompt: 'Wat is de minimale aanbevolen lengte voor een wachtwoord?',
-          answers: JSON.stringify(['6 karakters', '8 karakters', '12 karakters', '16 karakters']),
-          correctIndex: 2,
-          explanation: '12 karakters is het minimum voor goede beveiliging',
-          order: 1
+          title: 'Inleiding Security Awareness',
+          description: 'Basis principes van security awareness',
+          type: LessonType.TEXT,
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: 'Wat is Security Awareness?' }]
+              },
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Security awareness gaat over het bewustzijn van medewerkers over cybersecurity risicos.' }]
+              }
+            ]
+          }),
+          order: 1,
+          durationMinutes: 20,
+          status: LessonStatus.PUBLISHED,
+          difficulty: 'beginner',
+          tags: JSON.stringify(['security', 'awareness', 'basics']),
+          category: 'Security Basics',
+          orgId: org.id
+        }
+      }),
+      prisma.lesson.create({
+        data: {
+          title: 'Phishing Herkenning',
+          description: 'Leer phishing emails herkennen en voorkomen',
+          type: LessonType.TEXT,
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: 'Herkennen van Phishing' }]
+              },
+              {
+                type: 'paragraph', 
+                content: [{ type: 'text', text: 'Phishing emails hebben vaak bepaalde kenmerken...' }]
+              }
+            ]
+          }),
+          order: 2,
+          durationMinutes: 25,
+          status: LessonStatus.PUBLISHED,
+          difficulty: 'beginner',
+          tags: JSON.stringify(['phishing', 'email', 'security']),
+          category: 'Security Basics',
+          orgId: org.id
+        }
+      }),
+      prisma.lesson.create({
+        data: {
+          title: 'Wachtwoord Beveiliging',
+          description: 'Best practices voor sterke wachtwoorden',
+          type: LessonType.TEXT,
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: 'Sterke Wachtwoorden' }]
+              },
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Een sterk wachtwoord bevat minimaal 12 karakters...' }]
+              }
+            ]
+          }),
+          order: 3,
+          durationMinutes: 15,
+          status: LessonStatus.PUBLISHED,
+          difficulty: 'beginner', 
+          tags: JSON.stringify(['wachtwoorden', 'security']),
+          category: 'Security Basics',
+          orgId: org.id
+        }
+      }),
+      prisma.lesson.create({
+        data: {
+          title: 'Social Engineering',
+          description: 'Herkennen en voorkomen van manipulatie technieken',
+          type: LessonType.TEXT,
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: 'Wat is Social Engineering?' }]
+              },
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Social engineering is de psychologische manipulatie...' }]
+              }
+            ]
+          }),
+          order: 4,
+          durationMinutes: 30,
+          status: LessonStatus.PUBLISHED,
+          difficulty: 'intermediate',
+          tags: JSON.stringify(['social engineering', 'manipulatie']),
+          category: 'Advanced Security',
+          orgId: org.id
         }
       })
+    ])
+    console.log('✅ 4 lessons created')
 
-      await prisma.quizQuestion.create({
+    // 4. Maak 2 STANDALONE modules
+    const modules = await Promise.all([
+      prisma.module.create({
         data: {
-          lessonId: quizLesson.id,
-          prompt: 'Welke van deze is het sterkste wachtwoord?',
-          answers: JSON.stringify(['wachtwoord123', 'P@ssw0rd!', 'CorrectePaardBatterijSpeld', '12345678']),
-          correctIndex: 2,
-          explanation: 'Lange zinnen zijn sterker dan complexe korte wachtwoorden',
+          title: 'Security Basics Training',
+          description: 'Complete basis security awareness training',
+          category: 'Security Basics',
+          status: 'Actief',
+          duration: 60,
+          difficulty: 'Beginner',
+          tags: JSON.stringify(['security', 'basics', 'awareness']),
+          order: 1
+        }
+      }),
+      prisma.module.create({
+        data: {
+          title: 'Geavanceerde Bedreigingen',
+          description: 'Training voor geavanceerde security bedreigingen',
+          category: 'Advanced Security', 
+          status: 'Actief',
+          duration: 45,
+          difficulty: 'Intermediate',
+          tags: JSON.stringify(['advanced', 'threats', 'security']),
           order: 2
         }
       })
-      console.log('✅ Quiz questions created')
-    }
+    ])
+    console.log('✅ 2 modules created')
 
-    // 6. Maak extra courses als placeholders
-    const phishingCourse = await prisma.course.create({
+    // 5. Koppel lessons aan modules (many-to-many)
+    await prisma.lessonOnModule.createMany({
+      data: [
+        // Module 1 krijgt lesson 1, 2, 3
+        { moduleId: modules[0].id, lessonId: lessons[0].id, order: 0 },
+        { moduleId: modules[0].id, lessonId: lessons[1].id, order: 1 },
+        { moduleId: modules[0].id, lessonId: lessons[2].id, order: 2 },
+        // Module 2 krijgt lesson 4
+        { moduleId: modules[1].id, lessonId: lessons[3].id, order: 0 }
+      ]
+    })
+    console.log('✅ Lessons connected to modules')
+
+    // 6. Maak course
+    const course = await prisma.course.create({
       data: {
-        title: 'Phishing Simulatie (intro)',
-        slug: 'phishing-simulatie',
-        description: 'Oefen met het herkennen van phishing attempts',
-        summary: 'Introductie in phishing herkenning',
-        level: 'beginner',
-        tags: JSON.stringify(['Phishing', 'E-mail', 'NIS2']),
+        title: 'Complete Security Awareness Training',
+        slug: 'complete-security-awareness',
+        description: 'Volledige security awareness training voor alle medewerkers',
         status: CourseStatus.PUBLISHED,
-        orgId: org.id
-      }
-    })
-
-    const privacyCourse = await prisma.course.create({
-      data: {
-        title: 'Privacy Fundamentals (AVG)',
-        slug: 'privacy-fundamentals',
-        description: 'Begrijp de basisprincipes van de AVG wetgeving',
-        summary: 'AVG/GDPR awareness training',
-        level: 'beginner',
-        tags: JSON.stringify(['AVG', 'Privacy', 'Data']),
-        status: CourseStatus.PUBLISHED,
-        orgId: org.id
-      }
-    })
-    console.log('✅ Additional courses created')
-
-    // 7. Maak enrollments
-    await prisma.enrollment.create({
-      data: {
-        userId: learner1.id,
-        courseId: cybersecurityCourse.id,
-        progress: 25
-      }
-    })
-
-    await prisma.enrollment.create({
-      data: {
-        userId: learner2.id,
-        courseId: cybersecurityCourse.id,
-        progress: 50
-      }
-    })
-    console.log('✅ Enrollments created')
-
-    // 8. Maak quiz attempt
-    if (quizLesson) {
-      await prisma.quizAttempt.create({
-        data: {
-          userId: learner1.id,
-          lessonId: quizLesson.id,
-          score: 85,
-          passed: true,
-          answers: JSON.stringify([2, 2]) // Correcte antwoorden
-        }
-      })
-      console.log('✅ Quiz attempt created')
-    }
-
-    // 9. Maak certificaat
-    await prisma.certificate.create({
-      data: {
-        userId: learner1.id,
-        courseId: cybersecurityCourse.id,
-        url: '/certificates/demo-certificaat.pdf'
-      }
-    })
-    console.log('✅ Certificate created')
-
-    // 10. Maak audit log
-    await prisma.auditLog.create({
-      data: {
         orgId: org.id,
-        userId: admin.id,
-        action: 'CREATE',
-        entity: 'COURSE',
-        entityId: cybersecurityCourse.id,
-        meta: JSON.stringify({ title: cybersecurityCourse.title })
+        modules: {
+          create: [
+            // Course krijgt beide modules
+            { moduleId: modules[0].id, order: 0 },
+            { moduleId: modules[1].id, order: 1 }
+          ]
+        }
       }
     })
-    console.log('✅ Audit log created')
+    console.log('✅ Course created with modules')
 
-    // 11. Final counts
-    const orgCount = await prisma.organization.count()
-    const userCount = await prisma.user.count()
-    const courseCount = await prisma.course.count()
-    const moduleCount = await prisma.module.count()
+    // 7. Final counts
     const lessonCount = await prisma.lesson.count()
-    const enrollmentCount = await prisma.enrollment.count()
-    const quizQuestionCount = await prisma.quizQuestion.count()
-    const quizAttemptCount = await prisma.quizAttempt.count()
-    const certificateCount = await prisma.certificate.count()
-    const auditLogCount = await prisma.auditLog.count()
+    const moduleCount = await prisma.module.count()
+    const courseCount = await prisma.course.count()
 
     console.log('📊 Final database stats:')
-    console.log('   Organizations:', orgCount)
-    console.log('   Users:', userCount)
-    console.log('   Courses:', courseCount)
-    console.log('   Modules:', moduleCount)
     console.log('   Lessons:', lessonCount)
-    console.log('   Enrollments:', enrollmentCount)
-    console.log('   Quiz Questions:', quizQuestionCount)
-    console.log('   Quiz Attempts:', quizAttemptCount)
-    console.log('   Certificates:', certificateCount)
-    console.log('   Audit Logs:', auditLogCount)
+    console.log('   Modules:', moduleCount) 
+    console.log('   Courses:', courseCount)
     console.log('🎉 Seeding completed successfully!')
     
   } catch (error) {
@@ -318,5 +249,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
-    console.log('🔌 Database disconnected')
   })

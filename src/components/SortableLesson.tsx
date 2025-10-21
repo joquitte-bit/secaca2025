@@ -4,14 +4,30 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Icons } from './Icons'
-import { Lesson } from '@/types/lesson' // ✅ Import centrale interface
 
-
+// ✅ Vereenvoudigde interface die compatibel is met de centrale Lesson interface
 interface SortableLessonProps {
-  lesson: Lesson
+  lesson: {
+    id: string
+    title: string
+    description?: string
+    status: string
+    category: string
+    type: string
+    difficulty?: string
+    order: number
+    duration: number
+    completionRate: number
+    tags?: string[] | string
+    updatedAt: string
+    // ✅ Compatibele velden voor module count
+    moduleCount?: number
+    includedInModules?: number
+    includedInCourses?: number
+  }
   isSelected: boolean
   onToggleSelection: (lessonId: string) => void
-  onEdit: (lesson: Lesson) => void
+  onEdit: (lesson: any) => void
   onToggleStatus: (lessonId: string) => void
   onDelete: (lessonId: string) => void
   getStatusColor: (status: string) => string
@@ -46,7 +62,14 @@ export function SortableLesson({
   }
 
   // ✅ Gebruik moduleCount als het beschikbaar is, anders fallback naar includedInModules
-  const displayModuleCount = lesson.moduleCount !== undefined ? lesson.moduleCount : lesson.includedInModules
+  const displayModuleCount = lesson.moduleCount !== undefined ? lesson.moduleCount : (lesson.includedInModules || 0)
+
+  // ✅ Veilige tags verwerking
+  const processedTags = typeof lesson.tags === 'string' 
+    ? JSON.parse(lesson.tags) 
+    : Array.isArray(lesson.tags) 
+      ? lesson.tags 
+      : []
 
   return (
     <div
@@ -113,21 +136,21 @@ export function SortableLesson({
                 <Icons.clock className="w-4 h-4" />
                 <span>{lesson.duration} min</span>
               </span>
-              {/* ✅ CRITICAL FIX: Toon moduleCount in plaats van includedInModules */}
+              {/* ✅ CRITICAL FIX: Toon moduleCount met fallback */}
               <span className="flex items-center space-x-1">
                 <Icons.modules className="w-4 h-4" />
                 <span>{displayModuleCount} modules</span>
               </span>
               <span className="flex items-center space-x-1">
                 <Icons.courses className="w-4 h-4" />
-                <span>{lesson.includedInCourses} courses</span>
+                <span>{lesson.includedInCourses || 0} courses</span>
               </span>
               <span className="text-gray-400">Bijgewerkt: {lesson.updatedAt}</span>
             </div>
             
-            {lesson.tags && (
+            {processedTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {(typeof lesson.tags === 'string' ? JSON.parse(lesson.tags) : lesson.tags || []).map((tag: string) => (
+                {processedTags.map((tag: string) => (
                   <span key={tag} className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
                     {tag}
                   </span>

@@ -56,11 +56,50 @@ export default async function DashboardPage() {
 
 // ADMIN DASHBOARD - Volledig overzicht
 async function AdminDashboard({ user }: { user: any }) {
+  // ✅ GECORRIGEERDE QUERIES voor many-to-many architectuur
   const stats = await prisma.$transaction([
+    // Courses count
     prisma.course.count({ where: { orgId: user.orgId } }),
+    // Users count
     prisma.user.count({ where: { orgId: user.orgId } }),
-    prisma.module.count({ where: { course: { orgId: user.orgId } } }),
-    prisma.lesson.count({ where: { module: { course: { orgId: user.orgId } } } }),
+    // Modules count - ✅ VERANDERD: Gebruik courses relatie i.p.v. course
+    prisma.module.count({
+      where: {
+        courses: {
+          some: {
+            course: {
+              orgId: user.orgId
+            }
+          }
+        }
+      }
+    }),
+    // Lessons count - ✅ VERANDERD: Gebruik modules → courses relaties
+    prisma.lesson.count({
+      where: {
+        OR: [
+          // Lessons direct gekoppeld aan organization
+          { orgId: user.orgId },
+          // Lessons gekoppeld via modules → courses
+          {
+            modules: {
+              some: {
+                module: {
+                  courses: {
+                    some: {
+                      course: {
+                        orgId: user.orgId
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }),
+    // Enrollments count
     prisma.enrollment.count({ where: { course: { orgId: user.orgId } } }),
   ])
 
@@ -133,9 +172,18 @@ async function LearnerDashboard({ user }: { user: any }) {
     include: {
       course: {
         include: {
+          // ✅ VERANDERD: Gebruik modules via junction table
           modules: {
             include: {
-              lessons: true
+              module: {
+                include: {
+                  lessons: {
+                    include: {
+                      lesson: true
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -244,7 +292,15 @@ async function RecentCourses({ orgId }: { orgId: string }) {
     where: { orgId },
     orderBy: { createdAt: 'desc' },
     take: 5,
-    include: { modules: true, enrollments: true }
+    include: { 
+      // ✅ VERANDERD: Gebruik modules via junction table
+      modules: {
+        include: {
+          module: true
+        }
+      }, 
+      enrollments: true 
+    }
   })
 
   return (

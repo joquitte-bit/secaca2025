@@ -1,11 +1,11 @@
-// 📁 BESTAND: /src/components/CourseModal.tsx - GECORRIGEERDE INTERFACE
+// src/components/CourseModal.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { Icons } from './Icons'
 
 interface Module {
-  id: number
+  id: string
   title: string
   duration: number
   category: string
@@ -13,7 +13,6 @@ interface Module {
   lessons: number
 }
 
-// VERBETERDE Course interface - voeg ontbrekende properties toe
 interface Course {
   id?: number
   title: string
@@ -22,9 +21,8 @@ interface Course {
   difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
   status: 'Actief' | 'Inactief' | 'Concept'
   tags?: string[]
-  includedModules?: number[]
+  includedModules?: string[]
   order?: number
-  // NIEUW: Voeg ontbrekende properties toe
   students?: number
   progress?: number
   modules?: number
@@ -39,15 +37,6 @@ interface CourseModalProps {
   onClose: () => void
   onSave: (courseData: any) => void
 }
-
-// Mock modules data - in een echte app komt dit uit de database
-const availableModules: Module[] = [
-  { id: 1, title: 'Phishing Awareness Training', duration: 60, category: 'Security Basics', status: 'Actief', lessons: 5 },
-  { id: 2, title: 'Social Engineering Defense', duration: 45, category: 'Advanced Security', status: 'Actief', lessons: 4 },
-  { id: 3, title: 'Password Security Mastery', duration: 30, category: 'Security Basics', status: 'Actief', lessons: 3 },
-  { id: 4, title: 'Data Protection Fundamentals', duration: 75, category: 'Data Security', status: 'Actief', lessons: 6 },
-  { id: 5, title: 'CEO Fraude Herkenning', duration: 25, category: 'Advanced Security', status: 'Concept', lessons: 2 },
-]
 
 export function CourseModal({ course, categories, onClose, onSave }: CourseModalProps) {
   const [formData, setFormData] = useState<Course>({
@@ -65,6 +54,63 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
   const [moduleSearch, setModuleSearch] = useState('')
   const [selectedModuleCategory, setSelectedModuleCategory] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [availableModules, setAvailableModules] = useState<Module[]>([])
+
+  // Fetch available modules from API
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        // Mock modules data die overeenkomt met wat in modules pagina wordt getoond
+        const mockModules: Module[] = [
+          { 
+            id: '1', 
+            title: 'Security Basics Training', 
+            duration: 60, 
+            category: 'Security Basics', 
+            status: 'Actief', 
+            lessons: 3 
+          },
+          { 
+            id: '2', 
+            title: 'Geavanceerde Bedreigingen', 
+            duration: 45, 
+            category: 'Advanced Security', 
+            status: 'Actief', 
+            lessons: 1 
+          },
+          { 
+            id: '3', 
+            title: 'Phishing Awareness', 
+            duration: 30, 
+            category: 'Security Basics', 
+            status: 'Actief', 
+            lessons: 2 
+          },
+          { 
+            id: '4', 
+            title: 'Data Protection', 
+            duration: 75, 
+            category: 'Data Security', 
+            status: 'Actief', 
+            lessons: 4 
+          },
+          { 
+            id: '5', 
+            title: 'Social Engineering Defense', 
+            duration: 50, 
+            category: 'Advanced Security', 
+            status: 'Concept', 
+            lessons: 2 
+          },
+        ]
+        setAvailableModules(mockModules)
+      } catch (error) {
+        console.error('Error fetching modules:', error)
+      }
+    }
+
+    fetchModules()
+  }, [])
 
   useEffect(() => {
     if (course) {
@@ -79,7 +125,6 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
         order: course.order || 0
       })
     } else {
-      // Nieuwe course - bepaal volgende order nummer
       setFormData(prev => ({
         ...prev,
         order: categories.length > 0 ? categories.length + 1 : 1
@@ -94,28 +139,48 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     setIsSubmitting(true)
 
     try {
-      // Bereken totale duur op basis van geselecteerde modules
+      // Calculate totals based on selected modules
       const selectedModules = availableModules.filter(module => 
         formData.includedModules?.includes(module.id)
       )
       const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
       const totalLessons = selectedModules.reduce((total, module) => total + module.lessons, 0)
       
+      // Prepare course data
+      const courseData = {
+        ...formData,
+        modules: formData.includedModules?.length || 0,
+        duration: totalDuration,
+        students: course?.students || 0,
+        progress: course?.progress || 0,
+        createdAt: course?.createdAt || new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
+      }
+
+      // Simuleer API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      onSave(courseData)
+      onClose()
+    } catch (error) {
+      console.error('Error saving course:', error)
+      // Fallback to local state if API fails
+      const selectedModules = availableModules.filter(module => 
+        formData.includedModules?.includes(module.id)
+      )
+      const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
+      
       const courseData = {
         ...formData,
         id: course?.id || Date.now(),
         duration: totalDuration,
         modules: formData.includedModules?.length || 0,
-        students: course?.students || 0, // FIX: Gebruik course.student of default 0
-        progress: course?.progress || 0,  // FIX: Gebruik course.progress of default 0
+        students: course?.students || 0,
+        progress: course?.progress || 0,
         createdAt: course?.createdAt || new Date().toISOString().split('T')[0],
         updatedAt: new Date().toISOString().split('T')[0]
       }
-
-      await onSave(courseData)
-      onClose()
-    } catch (error) {
-      console.error('Error saving course:', error)
+      onSave(courseData)
     } finally {
       setIsSubmitting(false)
     }
@@ -138,7 +203,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     }))
   }
 
-  const toggleModuleSelection = (moduleId: number) => {
+  const toggleModuleSelection = (moduleId: string) => {
     setFormData(prev => ({
       ...prev,
       includedModules: prev.includedModules?.includes(moduleId)
@@ -154,7 +219,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     }
   }
 
-  // Module filtering (zoals in ModuleModal)
+  // Module filtering
   const getFilteredModules = () => {
     return availableModules.filter(module => {
       const matchesSearch = module.title.toLowerCase().includes(moduleSearch.toLowerCase())
@@ -180,12 +245,41 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     }))
   }
 
+  // Helper functie voor status kleuren - UNIFORM MET LESSONS EN MODULES
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Actief':
+        return 'bg-green-100 text-green-800'
+      case 'Inactief':
+        return 'bg-red-100 text-red-800'
+      case 'Concept':
+        return 'bg-yellow-100 text-yellow-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  // Helper functie voor difficulty kleuren - UNIFORM MET LESSONS EN MODULES
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Beginner':
+        return 'bg-green-100 text-green-800'
+      case 'Intermediate':
+        return 'bg-blue-100 text-blue-800'
+      case 'Expert':
+        return 'bg-purple-100 text-purple-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Header - UNIFORM MET LESSONMODAL */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-xl font-semibold text-gray-900">
               {course ? 'Course Bewerken' : 'Nieuwe Course'}
             </h3>
             <button
@@ -193,13 +287,13 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
               disabled={isSubmitting}
               className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
             >
-              <Icons.close className="w-5 h-5" />
+              <Icons.close className="w-6 h-6" />
             </button>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basis Informatie */}
+          {/* Basis Informatie - UNIFORM LAYOUT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Titel */}
             <div className="md:col-span-2">
@@ -309,7 +403,7 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
             </div>
           </div>
 
-          {/* Tags */}
+          {/* Tags - UNIFORM STYLING */}
           <div>
             <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
               Tags
@@ -318,14 +412,14 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
               {formData.tags?.map((tag, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                 >
                   {tag}
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
                     disabled={isSubmitting}
-                    className="ml-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    className="ml-2 text-blue-600 hover:text-blue-800 disabled:opacity-50"
                   >
                     ×
                   </button>
@@ -346,14 +440,14 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 type="button"
                 onClick={addTag}
                 disabled={isSubmitting}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
               >
                 Toevoegen
               </button>
             </div>
           </div>
 
-          {/* Module Selectie Sectie */}
+          {/* Module Selectie Sectie - UNIFORM MET LESSONMODAL'S MODULE SELECTIE */}
           <div className="border-t border-gray-200 pt-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -404,9 +498,9 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
               </div>
             </div>
 
-            {/* Modules Lijst */}
-            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            {/* Modules Lijst - UNIFORM STYLING */}
+            <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
+              <div className="bg-gray-50 px-4 py-2 border-b border-gray-300">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <input
@@ -431,33 +525,25 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                   </div>
                 ) : (
                   filteredModules.map(module => (
-                    <div key={module.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={formData.includedModules?.includes(module.id) || false}
-                          onChange={() => toggleModuleSelection(module.id)}
-                          disabled={isSubmitting}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {module.title}
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                              module.status === 'Actief' ? 'bg-green-100 text-green-800' :
-                              module.status === 'Inactief' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {module.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{module.category}</span>
-                            <span>{module.duration} minuten</span>
-                            <span>{module.lessons} lessen</span>
-                          </div>
+                    <div key={module.id} className="flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={formData.includedModules?.includes(module.id) || false}
+                        onChange={() => toggleModuleSelection(module.id)}
+                        disabled={isSubmitting}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="font-medium text-gray-900">
+                          {module.title}
+                        </div>
+                        <div className="text-sm text-gray-500 flex items-center space-x-4 mt-1">
+                          <span>{module.category}</span>
+                          <span>{module.duration} minuten</span>
+                          <span>{module.lessons} lessen</span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getStatusColor(module.status)}`}>
+                            {module.status}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -467,19 +553,22 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
             </div>
           </div>
 
-          {/* Preview */}
+          {/* Preview - UNIFORM MET LESSONMODAL */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Voorbeeld:</h4>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 space-y-2">
               <p><strong>Titel:</strong> {formData.title || 'Niet ingevuld'}</p>
               <p><strong>Categorie:</strong> {formData.category || 'Niet ingevuld'}</p>
-              <p><strong>Status:</strong> 
-                <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                  formData.status === 'Actief' ? 'bg-green-100 text-green-800' :
-                  formData.status === 'Inactief' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
+              <p className="flex items-center">
+                <strong>Status:</strong> 
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(formData.status)}`}>
                   {formData.status || 'Niet ingevuld'}
+                </span>
+              </p>
+              <p className="flex items-center">
+                <strong>Moeilijkheidsgraad:</strong> 
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getDifficultyColor(formData.difficulty || 'Beginner')}`}>
+                  {formData.difficulty || 'Beginner'}
                 </span>
               </p>
               <p><strong>Aantal modules:</strong> {formData.includedModules?.length || 0}</p>
@@ -488,26 +577,23 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions - UNIFORM MET LESSONMODAL EN MODULEMODAL */}
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
             >
               Annuleren
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSubmitting && (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Icons.loading className="w-4 h-4 animate-spin" />
               )}
               <span>{isSubmitting ? 'Bezig...' : (course ? 'Bijwerken' : 'Course Aanmaken')}</span>
             </button>

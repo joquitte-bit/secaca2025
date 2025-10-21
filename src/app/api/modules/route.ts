@@ -6,9 +6,15 @@ export async function GET() {
   try {
     const modules = await prisma.module.findMany({
       include: {
-        course: {
-          select: {
-            title: true
+        // ✅ VERANDERD: Gebruik courses i.p.v. course voor many-to-many
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
         lessons: {
@@ -38,8 +44,9 @@ export async function GET() {
       title: module.title,
       description: module.description || '',
       order: module.order,
-      courseId: module.courseId,
-      courseTitle: module.course?.title,
+      // ✅ VERANDERD: courseId wordt nu uit courses gehaald
+      courseId: module.courses[0]?.course?.id || null,
+      courseTitle: module.courses[0]?.course?.title || null,
       category: module.category || 'Uncategorized',
       status: module.status || 'Concept',
       duration: module.duration || 0,
@@ -80,16 +87,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get the highest order for this course
+    // Get the highest order for new module
     const highestOrderModule = await prisma.module.findFirst({
-      where: { courseId: body.courseId },
       orderBy: { order: 'desc' }
     })
     const nextOrder = highestOrderModule ? highestOrderModule.order + 1 : 1
 
-    // Prepare create data
+    // Prepare create data - GEEN courseId meer in Module model
     const createData: any = {
-      courseId: body.courseId,
       title: body.title,
       description: body.description || '',
       order: nextOrder,
@@ -103,9 +108,15 @@ export async function POST(request: NextRequest) {
     const newModule = await prisma.module.create({
       data: createData,
       include: {
-        course: {
-          select: {
-            title: true
+        // ✅ VERANDERD: Gebruik courses i.p.v. course
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
         lessons: {
@@ -126,6 +137,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // ✅ NIEUW: Creëer CourseOnModule relatie voor many-to-many
+    if (body.courseId) {
+      await prisma.courseOnModule.create({
+        data: {
+          courseId: body.courseId,
+          moduleId: newModule.id,
+          order: 0
+        }
+      })
+    }
+
     // If lessonIds are provided, connect the lessons via junction table
     if (body.lessonIds && Array.isArray(body.lessonIds) && body.lessonIds.length > 0) {
       console.log('📚 [API] Connecting lessons to new module via junction:', body.lessonIds)
@@ -145,9 +167,15 @@ export async function POST(request: NextRequest) {
       const updatedModule = await prisma.module.findUnique({
         where: { id: newModule.id },
         include: {
-          course: {
-            select: {
-              title: true
+          // ✅ VERANDERD: Gebruik courses i.p.v. course
+          courses: {
+            include: {
+              course: {
+                select: {
+                  id: true,
+                  title: true
+                }
+              }
             }
           },
           lessons: {
@@ -180,8 +208,8 @@ export async function POST(request: NextRequest) {
         title: updatedModule!.title,
         description: updatedModule!.description || '',
         order: updatedModule!.order,
-        courseId: updatedModule!.courseId,
-        courseTitle: updatedModule!.course?.title,
+        courseId: updatedModule!.courses[0]?.course?.id || null,
+        courseTitle: updatedModule!.courses[0]?.course?.title || null,
         category: updatedModule!.category || 'Uncategorized',
         status: updatedModule!.status || 'Concept',
         duration: updatedModule!.duration || 0,
@@ -209,8 +237,8 @@ export async function POST(request: NextRequest) {
       title: newModule.title,
       description: newModule.description || '',
       order: newModule.order,
-      courseId: newModule.courseId,
-      courseTitle: newModule.course?.title,
+      courseId: newModule.courses[0]?.course?.id || null,
+      courseTitle: newModule.courses[0]?.course?.title || null,
       category: newModule.category || 'Uncategorized',
       status: newModule.status || 'Concept',
       duration: newModule.duration || 0,

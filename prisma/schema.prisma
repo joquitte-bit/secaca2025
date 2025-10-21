@@ -9,7 +9,7 @@ datasource db {
 }
 
 // ====================
-// ENUMS
+// ENUMS - GECORRIGEERD
 // ====================
 
 enum UserRole {
@@ -23,6 +23,18 @@ enum CourseStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum ModuleStatus {
+  Concept
+  Actief
+  Inactief
+}
+
+enum Difficulty {
+  Beginner
+  Intermediate
+  Expert
 }
 
 enum LessonType {
@@ -39,7 +51,7 @@ enum LessonStatus {
 }
 
 // ====================
-// MODELS
+// MODELS - GECORRIGEERD
 // ====================
 
 model Organization {
@@ -108,15 +120,15 @@ model Course {
   slug        String
   description String?
   summary     String?
-  level       String? // 'beginner', 'intermediate', 'advanced'
-  tags        String? // JSON string voor SQLite compatibiliteit
+  level       String?
+  tags        String?
   status      CourseStatus @default(DRAFT)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   // Relations
   organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  modules      Module[]
+  modules      CourseOnModule[]  // ✅ Many-to-many via junction table
   enrollments  Enrollment[]
   certificates Certificate[]
 
@@ -126,27 +138,25 @@ model Course {
 }
 
 model Module {
-  id          String   @id @default(cuid())
-  courseId    String
+  id          String        @id @default(cuid())
   title       String
   description String?
-  order       Int      @default(0)
+  order       Int           @default(0)
   
-  // NIEUWE VELDEN voor SECACA modules
-  category    String?  @default("Uncategorized")
-  status      String?  @default("Concept")
-  duration    Int?     @default(0)
-  difficulty  String?  @default("Beginner")
-  tags        String?  // JSON string voor SQLite compatibiliteit
+  // NIEUWE VELDEN voor SECACA modules - GECORRIGEERD
+  category    String?       @default("Uncategorized")
+  status      ModuleStatus? @default(Concept) // ✅ Gecorrigeerd: Concept ipv CONCEPT
+  duration    Int?          @default(0)
+  difficulty  Difficulty?   @default(Beginner) // ✅ Gecorrigeerd: Beginner ipv BEGINNER
+  tags        String?       // JSON string voor SQLite compatibiliteit
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   // Relations
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons LessonOnModule[]  // ✅ Many-to-many via junction table
+  courses CourseOnModule[]  // ✅ Many-to-many met courses
 
-  @@index([courseId, order])
   @@map("modules")
 }
 
@@ -177,7 +187,21 @@ model Lesson {
   @@map("lessons")
 }
 
-// 📍 NIEUW: Junction table voor many-to-many tussen lessons en modules
+// ✅ NIEUW: Junction table voor many-to-many tussen courses en modules
+model CourseOnModule {
+  id        String   @id @default(cuid())
+  courseId  String
+  moduleId  String
+  order     Int      @default(0) // Volgorde binnen de course
+  
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  @@unique([courseId, moduleId])  // Voorkom dubbele koppelingen
+  @@map("course_on_module")
+}
+
+// ✅ BESTAAND: Junction table voor many-to-many tussen lessons en modules
 model LessonOnModule {
   id        String   @id @default(cuid())
   moduleId  String

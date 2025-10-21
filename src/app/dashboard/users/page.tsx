@@ -1,208 +1,93 @@
-// src/app/dashboard/users/page.tsx
+// 📁 BESTAND: /src/app/dashboard/users/page.tsx
 'use client'
 
-import { useState, useMemo } from 'react'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
-import { UsersModal } from '@/components/UsersModal'
-import { SortableUsers } from '@/components/SortableUsers'
 
 interface User {
-  id: number
+  id: string
   name: string
   email: string
-  role: 'Gebruiker' | 'Beheerder'
-  status: 'Actief' | 'Inactief'
-  lastLogin: string
-  joinDate: string
-  department?: string
-  phone?: string
+  role: 'Admin' | 'Manager' | 'User' | 'Viewer'
+  status: 'Actief' | 'Inactief' | 'Uitgenodigd'
+  department: string
+  completedCourses: number
+  totalCourses: number
+  progress: number
+  lastActive: string
+  joinedAt: string
+  tags: string[]
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([
-    { 
-      id: 1, 
-      name: 'John Doe', 
-      email: 'john@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Actief', 
-      lastLogin: '2024-01-15',
-      joinDate: '2023-12-01',
-      department: 'IT',
-      phone: '+31 6 12345678'
-    },
-    { 
-      id: 2, 
-      name: 'Jane Smith', 
-      email: 'jane@bedrijf.nl', 
-      role: 'Beheerder', 
-      status: 'Actief', 
-      lastLogin: '2024-01-14',
-      joinDate: '2023-11-15',
-      department: 'HR',
-      phone: '+31 6 23456789'
-    },
-    { 
-      id: 3, 
-      name: 'Bob Johnson', 
-      email: 'bob@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Inactief', 
-      lastLogin: '2024-01-10',
-      joinDate: '2023-12-20',
-      department: 'Finance',
-      phone: '+31 6 34567890'
-    },
-    { 
-      id: 4, 
-      name: 'Alice Brown', 
-      email: 'alice@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Actief', 
-      lastLogin: '2024-01-15',
-      joinDate: '2024-01-05',
-      department: 'Marketing',
-      phone: '+31 6 45678901'
-    },
-  ])
-
-  const [departments] = useState([
-    'IT',
-    'HR', 
-    'Finance',
-    'Marketing',
-    'Sales',
-    'Operations'
-  ])
-
-  // Modal state
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
-
-  // Filter states
+  const [users, setUsers] = useState<User[]>([])
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedDepartment, setSelectedDepartment] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState('')
-  const [selectedRole, setSelectedRole] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'lastLogin' | 'joinDate' | 'department'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [statusFilter, setStatusFilter] = useState('Alle statussen')
+  const [roleFilter, setRoleFilter] = useState('Alle rollen')
+  const [departmentFilter, setDepartmentFilter] = useState('Alle afdelingen')
 
-  // Bulk actions state
-  const [selectedUsers, setSelectedUsers] = useState<number[]>([])
-
-  // Helper functions
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Actief': return 'bg-green-100 text-green-800 border border-green-200'
-      case 'Inactief': return 'bg-red-100 text-red-800 border border-red-200'
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200'
-    }
-  }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'Beheerder': return 'bg-purple-100 text-purple-800 border border-purple-200'
-      case 'Gebruiker': return 'bg-blue-100 text-blue-800 border border-blue-200'
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200'
-    }
-  }
-
-  // Filtered and sorted users
-  const filteredUsers = useMemo(() => {
-    let filtered = users.filter((user: User) => {
-      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (user.department && user.department.toLowerCase().includes(searchTerm.toLowerCase()))
-      const matchesDepartment = !selectedDepartment || user.department === selectedDepartment
-      const matchesStatus = !selectedStatus || user.status === selectedStatus
-      const matchesRole = !selectedRole || user.role === selectedRole
-      
-      return matchesSearch && matchesDepartment && matchesStatus && matchesRole
-    })
-
-    // Sorting
-    filtered.sort((a: User, b: User) => {
-      let aValue: any = a[sortBy]
-      let bValue: any = b[sortBy]
-      
-      if (sortBy === 'lastLogin' || sortBy === 'joinDate') {
-        aValue = new Date(aValue)
-        bValue = new Date(bValue)
+  // Mock data - IDENTIEKE STRUCTUUR ALS ANDERE PAGINA'S
+  useEffect(() => {
+    const mockUsers: User[] = [
+      {
+        id: '1',
+        name: 'Jan Jansen',
+        email: 'jan.jansen@bedrijf.nl',
+        role: 'Admin',
+        status: 'Actief',
+        department: 'IT',
+        completedCourses: 12,
+        totalCourses: 15,
+        progress: 80,
+        lastActive: '2025-10-21T08:08:29.900Z',
+        joinedAt: '2025-01-15T00:00:00.000Z',
+        tags: ['admin', 'it']
+      },
+      {
+        id: '2',
+        name: 'Marie van Dijk',
+        email: 'marie.vandijk@bedrijf.nl',
+        role: 'Manager',
+        status: 'Actief',
+        department: 'HR',
+        completedCourses: 8,
+        totalCourses: 10,
+        progress: 65,
+        lastActive: '2025-10-20T14:30:00.000Z',
+        joinedAt: '2025-02-10T00:00:00.000Z',
+        tags: ['manager', 'hr']
+      },
+      {
+        id: '3',
+        name: 'Peter de Vries',
+        email: 'peter.devries@bedrijf.nl',
+        role: 'User',
+        status: 'Uitgenodigd',
+        department: 'Sales',
+        completedCourses: 0,
+        totalCourses: 5,
+        progress: 0,
+        lastActive: '2025-10-19T10:15:00.000Z',
+        joinedAt: '2025-10-18T00:00:00.000Z',
+        tags: ['sales', 'new']
       }
-      
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
-    })
+    ]
+    setUsers(mockUsers)
+  }, [])
 
-    return filtered
-  }, [users, searchTerm, selectedDepartment, selectedStatus, selectedRole, sortBy, sortOrder])
-
-  // Reset alle filters
-  const resetFilters = () => {
-    setSearchTerm('')
-    setSelectedDepartment('')
-    setSelectedStatus('')
-    setSelectedRole('')
-    setSortBy('name')
-    setSortOrder('asc')
-  }
-
-  // User actions
-  const handleDeleteUser = (userId: number) => {
-    if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-      setUsers(users.filter(user => user.id !== userId))
-    }
-  }
-
-  const handleToggleStatus = (userId: number) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: user.status === 'Actief' ? 'Inactief' : 'Actief'
-          } 
-        : user
-    ))
-  }
-
-  const handleSaveUser = (userData: any) => {
-    if (userData.id && users.find(u => u.id === userData.id)) {
-      // Update bestaande user
-      setUsers(users.map(user => 
-        user.id === userData.id ? userData : user
-      ))
-    } else {
-      // Nieuwe user
-      setUsers(prev => [...prev, {
-        ...userData,
-        id: Date.now(),
-        lastLogin: '2024-01-15' // Standaard waarde
-      }])
-    }
+  // Filter users - IDENTIEKE LOGICA ALS ANDERE PAGINA'S
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'Alle statussen' || user.status === statusFilter
+    const matchesRole = roleFilter === 'Alle rollen' || user.role === roleFilter
+    const matchesDepartment = departmentFilter === 'Alle afdelingen' || user.department === departmentFilter
     
-    // Close modals automatisch
-    setShowCreateModal(false)
-    setEditingUser(null)
-  }
+    return matchesSearch && matchesStatus && matchesRole && matchesDepartment
+  })
 
-  // Bulk action handlers
-  const toggleUserSelection = (userId: number) => {
+  const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev =>
       prev.includes(userId)
         ? prev.filter(id => id !== userId)
@@ -210,380 +95,316 @@ export default function UsersPage() {
     )
   }
 
-  const selectAllUsers = () => {
+  const toggleAllUsers = () => {
     setSelectedUsers(
       selectedUsers.length === filteredUsers.length
         ? []
-        : filteredUsers.map((user: User) => user.id)
+        : filteredUsers.map(user => user.id)
     )
   }
 
-  const handleBulkStatusChange = (newStatus: 'Actief' | 'Inactief') => {
-    setUsers(users.map(user =>
-      selectedUsers.includes(user.id)
-        ? { ...user, status: newStatus }
-        : user
-    ))
-    setSelectedUsers([])
-  }
-
-  const handleBulkDelete = () => {
-    if (confirm(`Weet je zeker dat je ${selectedUsers.length} gebruikers wilt verwijderen?`)) {
-      setUsers(users.filter(user => !selectedUsers.includes(user.id)))
-      setSelectedUsers([])
+  // IDENTIEKE HELPER FUNCTIES ALS ANDERE PAGINA'S
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Actief': return 'bg-green-100 text-green-800'
+      case 'Inactief': return 'bg-red-100 text-red-800'
+      case 'Uitgenodigd': return 'bg-yellow-100 text-yellow-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  // Drag & Drop sensors - TOEGEVOEGD
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
-
-  // Handle drag end - TOEGEVOEGD
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-
-    if (over && active.id !== over.id) {
-      setUsers((currentUsers) => {
-        const oldIndex = currentUsers.findIndex((user) => user.id === active.id)
-        const newIndex = currentUsers.findIndex((user) => user.id === over.id)
-
-        return arrayMove(currentUsers, oldIndex, newIndex)
-      })
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'Admin': return 'bg-purple-100 text-purple-800'
+      case 'Manager': return 'bg-blue-100 text-blue-800'
+      case 'User': return 'bg-green-100 text-green-800'
+      case 'Viewer': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('nl-NL')
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50">
-      <div className="mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Gebruikers Beheer</h1>
-            <p className="text-gray-600 mt-1">Beheer alle gebruikers en hun rechten</p>
-          </div>
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
-          >
-            <Icons.add className="w-4 h-4" />
-            <span>Nieuwe Gebruiker</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filters en Search Bar */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
-          {/* Search */}
-          <div className="lg:col-span-2">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              Zoeken
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                id="search"
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Zoek op naam, email of afdeling..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Icons.search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
-          </div>
-
-          {/* Department Filter */}
-          <div>
-            <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-              Afdeling
-            </label>
-            <select
-              id="department"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-            >
-              <option value="">Alle afdelingen</option>
-              {departments.map(department => (
-                <option key={department} value={department}>{department}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
-            <select
-              id="status"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="">Alle statussen</option>
-              <option value="Actief">Actief</option>
-              <option value="Inactief">Inactief</option>
-            </select>
-          </div>
-
-          {/* Role Filter */}
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-              Rol
-            </label>
-            <select
-              id="role"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-            >
-              <option value="">Alle rollen</option>
-              <option value="Beheerder">Beheerder</option>
-              <option value="Gebruiker">Gebruiker</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Sort en Reset */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <label htmlFor="sort" className="text-sm font-medium text-gray-700">
-                Sorteren op:
-              </label>
-              <select
-                id="sort"
-                className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-              >
-                <option value="name">Naam</option>
-                <option value="lastLogin">Laatste login</option>
-                <option value="joinDate">Lid sinds</option>
-                <option value="department">Afdeling</option>
-              </select>
-            </div>
-            
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800"
-            >
-              <span>{sortOrder === 'asc' ? 'Oplopend' : 'Aflopend'}</span>
-              {sortOrder === 'asc' ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-600">
-              {filteredUsers.length} van {users.length} gebruikers
-            </span>
-            <button
-              onClick={resetFilters}
-              className="text-sm text-gray-600 hover:text-gray-800 underline"
-            >
-              Filters resetten
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Bulk Actions */}
-      {selectedUsers.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+    <div className="min-h-screen bg-gray-50 w-full">
+      {/* MAIN CONTENT - 100% BREEDTE EN UITGELIJND MET NAVBAR */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* HEADER - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-blue-700 font-medium">
-                {selectedUsers.length} gebruiker(s) geselecteerd
-              </span>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleBulkStatusChange('Actief')}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-                >
-                  Activeren
-                </button>
-                <button
-                  onClick={() => handleBulkStatusChange('Inactief')}
-                  className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition-colors"
-                >
-                  Deactiveren
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
-                >
-                  Verwijderen
-                </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Gebruikers</h1>
+              <p className="text-gray-600">Beheer alle gebruikers</p>
+            </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+              Nieuwe Gebruiker
+            </button>
+          </div>
+        </div>
+
+        {/* STATISTICS CARDS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Icons.users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Totaal Gebruikers</p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
               </div>
             </div>
-            <button
-              onClick={() => setSelectedUsers([])}
-              className="text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Selectie opheffen
-            </button>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Icons.clock className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Actieve Gebruikers</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.filter(u => u.status === 'Actief').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Icons.courses className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Gem. Voltooiing</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + user.progress, 0) / users.length) : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Icons.modules className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Voltooide Courses</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.reduce((acc, user) => acc + user.completedCourses, 0)}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Totaal Gebruikers</p>
-              <p className="text-2xl font-semibold text-gray-900">{users.length}</p>
-            </div>
-            <Icons.users className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Actieve Gebruikers</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {users.filter(u => u.status === 'Actief').length}
-              </p>
-            </div>
-            <Icons.check className="w-8 h-8 text-green-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Beheerders</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {users.filter(u => u.role === 'Beheerder').length}
-              </p>
-            </div>
-            <Icons.shield className="w-8 h-8 text-purple-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Nieuwe Gebruikers</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {users.filter(u => new Date(u.joinDate) > new Date('2024-01-01')).length}
-              </p>
-            </div>
-            <Icons.add className="w-8 h-8 text-orange-600" />
-          </div>
-        </div>
-      </div>
+        {/* SEARCH AND FILTERS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Zoeken op naam of email..."
+                    className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div className="absolute left-3 top-2.5 text-gray-400">
+                    <Icons.search className="w-4 h-4" />
+                  </div>
+                </div>
+                
+                <select 
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option>Alle statussen</option>
+                  <option>Actief</option>
+                  <option>Inactief</option>
+                  <option>Uitgenodigd</option>
+                </select>
+                
+                <select 
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option>Alle rollen</option>
+                  <option>Admin</option>
+                  <option>Manager</option>
+                  <option>User</option>
+                  <option>Viewer</option>
+                </select>
 
-      {/* Users Table */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <input
-                type="checkbox"
-                checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
-                onChange={selectAllUsers}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <h2 className="text-lg font-medium text-gray-900">Gebruikers Lijst</h2>
+                <select 
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                >
+                  <option>Alle afdelingen</option>
+                  {Array.from(new Set(users.map(u => u.department))).map(department => (
+                    <option key={department} value={department}>{department}</option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="text-sm text-gray-600">
                 {filteredUsers.length} van {users.length} gebruikers
               </div>
-              
-              {/* Drag & Drop Info - TOEGEVOEGD */}
-              <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                </svg>
-                <span>Sleep gebruikers om volgorde aan te passen</span>
+            </div>
+          </div>
+
+          {/* BULK ACTIONS - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+          {selectedUsers.length > 0 && (
+            <div className="bg-blue-50 px-4 py-3 border-b border-blue-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-blue-700">
+                    {selectedUsers.length} gebruikers geselecteerd
+                  </span>
+                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Activeren
+                  </button>
+                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Deactiveren
+                  </button>
+                  <button className="text-sm text-red-600 hover:text-red-800 font-medium">
+                    Verwijderen
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setSelectedUsers([])}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Selectie opheffen
+                </button>
               </div>
             </div>
-            
-            {selectedUsers.length > 0 && (
-              <div className="text-sm text-blue-600 font-medium">
-                {selectedUsers.length} geselecteerd
-              </div>
-            )}
+          )}
+
+          {/* TABLE - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                      onChange={toggleAllUsers}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gebruiker
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Afdeling
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Voltooide Courses
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Voortgang
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Laatst actief
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acties
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={() => toggleUserSelection(user.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-900">{user.department}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Icons.courses className="w-4 h-4 text-gray-400 mr-1" />
+                        {user.completedCourses}/{user.totalCourses}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                          <div 
+                            className="h-2 rounded-full bg-gray-900 transition-all duration-500"
+                            style={{ width: `${user.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-900">{user.progress}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(user.lastActive)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button className="text-gray-600 hover:text-blue-600 transition-colors" title="Bekijken">
+                          <Icons.eye className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-green-600 transition-colors" title="Bewerken">
+                          <Icons.settings className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-orange-600 transition-colors" title="Status wijzigen">
+                          <Icons.power className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-red-600 transition-colors" title="Verwijderen">
+                          <Icons.trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        
-        {/* DndContext wrapper - TOEGEVOEGD */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={filteredUsers.map((u: User) => u.id)} strategy={verticalListSortingStrategy}>
-            <div className="divide-y divide-gray-200">
-              {filteredUsers.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <Icons.users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Geen gebruikers gevonden</h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchTerm || selectedDepartment || selectedStatus || selectedRole
-                      ? 'Probeer je zoekcriteria aan te passen.' 
-                      : 'Er zijn nog geen gebruikers aangemaakt.'}
-                  </p>
-                  {!searchTerm && !selectedDepartment && !selectedStatus && !selectedRole && (
-                    <button 
-                      onClick={() => setShowCreateModal(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Eerste Gebruiker Aanmaken
-                    </button>
-                  )}
-                </div>
-              ) : (
-                filteredUsers.map((user: User) => (
-                  <SortableUsers
-                    key={user.id}
-                    user={user}
-                    isSelected={selectedUsers.includes(user.id)}
-                    onToggleSelection={toggleUserSelection}
-                    onEdit={setEditingUser}
-                    onToggleStatus={handleToggleStatus}
-                    onDelete={handleDeleteUser}
-                    getStatusColor={getStatusColor}
-                    getRoleColor={getRoleColor}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+
+        {/* DRAG & DROP INFO - EXACT HETZELFDE ALS ANDERE PAGINA'S */}
+        <div className="text-center text-sm text-gray-500 mt-4">
+          Sleep gebruikers om volgorde aan te passen
+        </div>
       </div>
-
-      {/* Modals */}
-      {showCreateModal && (
-        <UsersModal 
-          user={null}
-          departments={departments}
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleSaveUser}
-        />
-      )}
-
-      {editingUser && (
-        <UsersModal 
-          user={editingUser}
-          departments={departments}
-          onClose={() => setEditingUser(null)}
-          onSave={handleSaveUser}
-        />
-      )}
     </div>
   )
 }

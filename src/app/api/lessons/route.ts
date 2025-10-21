@@ -38,56 +38,28 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    console.log(`✅ ${lessons.length} lessons gevonden`)
-
-    const transformedLessons = lessons.map(lesson => {
-      // Haal modules op uit de junction table
-      const modules = lesson.modules.map(lessonOnModule => ({
-        id: lessonOnModule.module.id,
-        title: lessonOnModule.module.title,
-        description: lessonOnModule.module.description,
-        order: lessonOnModule.module.order,
-        category: lessonOnModule.module.category,
-        status: lessonOnModule.module.status,
-        duration: lessonOnModule.module.duration,
-        difficulty: lessonOnModule.module.difficulty,
-        tags: lessonOnModule.module.tags ? JSON.parse(lessonOnModule.module.tags) : []
-      }))
-
-      const primaryModule = modules.length > 0 ? modules[0] : null
-
-      console.log(`📚 Lesson "${lesson.title}" heeft ${modules.length} modules:`, 
-        modules.map(m => m.title))
-
-      return {
-        id: lesson.id,
-        title: lesson.title,
-        description: lesson.description || '',
-        type: lesson.type,
-        content: lesson.content,
-        order: lesson.order,
-        duration: lesson.durationMinutes || 0,
-        status: lesson.status,
-        difficulty: lesson.difficulty || 'Beginner',
-        tags: lesson.tags ? JSON.parse(lesson.tags) : [],
-        category: lesson.category || 'Uncategorized',
-        videoUrl: lesson.videoUrl,
-        // Voor backward compatibility
-        moduleId: primaryModule?.id || null,
-        moduleTitle: primaryModule?.title || null,
-        // Nieuwe velden met alle modules
-        modules: modules,
-        moduleCount: modules.length,
-        students: 0,
-        progress: 0,
-        createdAt: lesson.createdAt.toISOString().split('T')[0],
-        updatedAt: lesson.updatedAt.toISOString().split('T')[0],
+      orderBy: {
+        createdAt: 'desc'
       }
     })
 
+    // Transformeer de data voor de frontend
+    const transformedLessons = lessons.map(lesson => {
+      // Map module status van database enum naar frontend string
+      const modulesWithStatus = lesson.modules.map(lessonModule => ({
+        ...lessonModule.module,
+        status: lessonModule.module.status === 'ACTIEF' ? 'Actief' : 
+                lessonModule.module.status === 'INACTIEF' ? 'Inactief' : 'Concept'
+      }))
+
+      return {
+        ...lesson,
+        modules: modulesWithStatus,
+        moduleCount: lesson.modules.length
+      }
+    })
+
+    console.log(`✅ ${transformedLessons.length} lessons loaded`)
     return NextResponse.json(transformedLessons)
   } catch (error) {
     console.error('Lessons fetch error:', error)

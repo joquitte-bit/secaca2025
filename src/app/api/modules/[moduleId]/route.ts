@@ -19,7 +19,7 @@ export async function PUT(
       )
     }
 
-    // Prepare update data
+    // Prepare update data - GEEN courseId meer in Module model
     const updateData: any = {
       title: body.title,
       description: body.description || '',
@@ -30,14 +30,37 @@ export async function PUT(
       tags: Array.isArray(body.tags) ? JSON.stringify(body.tags) : '[]',
     }
 
+    // ✅ NIEUW: Update CourseOnModule relatie als courseId wordt meegegeven
+    if (body.courseId) {
+      // Verwijder bestaande course relaties
+      await prisma.courseOnModule.deleteMany({
+        where: { moduleId }
+      })
+      
+      // Creëer nieuwe course relatie
+      await prisma.courseOnModule.create({
+        data: {
+          courseId: body.courseId,
+          moduleId: moduleId,
+          order: 0
+        }
+      })
+    }
+
     // Update module first
     const updatedModule = await prisma.module.update({
       where: { id: moduleId },
       data: updateData,
       include: {
-        course: {
-          select: {
-            title: true
+        // ✅ VERANDERD: Gebruik courses i.p.v. course
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
         lessons: {
@@ -83,9 +106,15 @@ export async function PUT(
         const finalModule = await prisma.module.findUnique({
           where: { id: moduleId },
           include: {
-            course: {
-              select: {
-                title: true
+            // ✅ VERANDERD: Gebruik courses i.p.v. course
+            courses: {
+              include: {
+                course: {
+                  select: {
+                    id: true,
+                    title: true
+                  }
+                }
               }
             },
             lessons: {
@@ -118,8 +147,8 @@ export async function PUT(
           title: finalModule!.title,
           description: finalModule!.description || '',
           order: finalModule!.order,
-          courseId: finalModule!.courseId,
-          courseTitle: finalModule!.course?.title,
+          courseId: finalModule!.courses[0]?.course?.id || null,
+          courseTitle: finalModule!.courses[0]?.course?.title || null,
           category: finalModule!.category || 'Uncategorized',
           status: finalModule!.status || 'Concept',
           duration: finalModule!.duration || 0,
@@ -149,8 +178,8 @@ export async function PUT(
       title: updatedModule.title,
       description: updatedModule.description || '',
       order: updatedModule.order,
-      courseId: updatedModule.courseId,
-      courseTitle: updatedModule.course?.title,
+      courseId: updatedModule.courses[0]?.course?.id || null,
+      courseTitle: updatedModule.courses[0]?.course?.title || null,
       category: updatedModule.category || 'Uncategorized',
       status: updatedModule.status || 'Concept',
       duration: updatedModule.duration || 0,
@@ -185,9 +214,15 @@ export async function GET(
     const module = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
-        course: {
-          select: {
-            title: true
+        // ✅ VERANDERD: Gebruik courses i.p.v. course
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
         lessons: {
@@ -221,8 +256,8 @@ export async function GET(
       title: module.title,
       description: module.description || '',
       order: module.order,
-      courseId: module.courseId,
-      courseTitle: module.course?.title,
+      courseId: module.courses[0]?.course?.id || null,
+      courseTitle: module.courses[0]?.course?.title || null,
       category: module.category || 'Uncategorized',
       status: module.status || 'Concept',
       duration: module.duration || 0,
@@ -258,9 +293,15 @@ export async function PATCH(
       where: { id: moduleId },
       data: body,
       include: {
-        course: {
-          select: {
-            title: true
+        // ✅ VERANDERD: Gebruik courses i.p.v. course
+        courses: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
           }
         },
         lessons: {
@@ -287,8 +328,8 @@ export async function PATCH(
       title: module.title,
       description: module.description || '',
       order: module.order,
-      courseId: module.courseId,
-      courseTitle: module.course?.title,
+      courseId: module.courses[0]?.course?.id || null,
+      courseTitle: module.courses[0]?.course?.title || null,
       category: module.category || 'Uncategorized',
       status: module.status || 'Concept',
       duration: module.duration || 0,
