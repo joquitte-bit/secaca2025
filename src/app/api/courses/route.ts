@@ -1,35 +1,26 @@
-// src/app/api/courses/route.ts
+// src/app/api/courses/route.ts - COMPLEET MET DELETE EN PATCH
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 
-export async function GET(request: NextRequest) {
+const prisma = new PrismaClient()
+
+// Helper function voor safe number conversion
+const safeNumber = (value: any, fallback: number = 0): number => {
+  if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+    return fallback
+  }
+  return Number(value)
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const orgId = searchParams.get('orgId') // Geen default value, toon alle courses als geen orgId wordt meegegeven
-
+    console.log('📥 GET /api/courses - Fetching all courses')
+    
     const courses = await prisma.course.findMany({
-      where: orgId ? { orgId } : {},
       include: {
-        modules: {
+        courseModules: {
           include: {
-            module: {
-              include: {
-                lessons: {
-                  include: {
-                    lesson: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        enrollments: {
-          select: {
-            id: true,
-            progress: true
+            module: true
           }
         }
       },
@@ -38,51 +29,36 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Transform to match frontend interface
-    const transformedCourses = courses.map(course => {
-      const totalLessons = course.modules.reduce((acc, courseModule) => {
-        return acc + (courseModule.module.lessons?.length || 0)
-      }, 0)
+    console.log(`📊 Found ${courses.length} courses`)
 
-      const averageProgress = course.enrollments.length > 0 
-        ? Math.round(course.enrollments.reduce((acc, enrollment) => acc + enrollment.progress, 0) / course.enrollments.length)
-        : 0
+    const transformedCourses = courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      status: course.status as 'Concept' | 'Actief' | 'Inactief',
+      level: course.level,
+      tags: course.tags ? JSON.parse(course.tags) : [],
+      slug: course.slug,
+      order: safeNumber(course.order),
+      duration: safeNumber(course.duration),
+      difficulty: course.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: course.category || 'Uncategorized',
+      modules: course.courseModules.length,
+      enrollments: safeNumber(course.enrollmentCount),
+      certificates: safeNumber(course.certificateCount),
+      completionRate: safeNumber(course.completionRate),
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString(),
+      moduleCount: course.courseModules.length
+    }))
 
-      // Map database status to frontend status
-      let status: 'Actief' | 'Inactief' | 'Concept' = 'Concept'
-      if (course.status === 'PUBLISHED') status = 'Actief'
-      if (course.status === 'ARCHIVED') status = 'Inactief'
-
-      // Map database level to frontend difficulty
-      let difficulty: 'Beginner' | 'Intermediate' | 'Expert' = 'Beginner'
-      if (course.level === 'intermediate') difficulty = 'Intermediate'
-      if (course.level === 'expert') difficulty = 'Expert'
-
-      return {
-        id: course.id,
-        title: course.title,
-        description: course.description || '',
-        status: status,
-        students: course.enrollments.length,
-        progress: averageProgress,
-        modules: course.modules.length,
-        category: course.level || '', // Using level as category for now
-        order: 0, // Not in schema, default to 0
-        createdAt: course.createdAt.toISOString().split('T')[0],
-        updatedAt: course.updatedAt.toISOString().split('T')[0],
-        duration: totalLessons, // Use total lessons as duration indicator
-        difficulty: difficulty,
-        tags: course.tags ? JSON.parse(course.tags) : [],
-        includedModules: course.modules.map(cm => cm.moduleId)
-      }
-    })
-
-    console.log(`✅ [API] ${transformedCourses.length} courses loaded for org ${orgId}`)
+    console.log('✅ Courses transformed successfully')
     return NextResponse.json(transformedCourses)
-  } catch (error) {
-    console.error('Error fetching courses:', error)
+
+  } catch (error: any) {
+    console.error('❌ Error fetching courses:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch courses' },
+      { error: 'Failed to fetch courses: ' + error.message },
       { status: 500 }
     )
   }
@@ -90,133 +66,385 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    console.log('📝 POST /api/courses - Creating new course')
     
-    console.log('🔍 [API] POST course request:', body)
+    const body = await request.json()
+    console.log('📦 Request body:', body)
 
-    // Validate required fields
-    if (!body.title || !body.orgId) {
+    const {
+      title,
+      description,
+      status = 'Concept',
+      level = 'Introductie',
+      tags = [],
+      slug,
+      order = 0,
+      duration = 0,
+      difficulty = 'Beginner',
+      category = 'Uncategorized',
+      modules = 0,
+      enrollments = 0,
+      certificates = 0,
+      completionRate = 0
+    } = body
+
+    // Validation
+    if (!title || !description || !category) {
       return NextResponse.json(
-        { error: 'Title and organization are required' },
+        { error: 'Title, description and category are required' },
         { status: 400 }
       )
     }
 
-    // Generate slug from title
-    const slug = body.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)+/g, '')
+    // Generate slug if not provided
+    const courseSlug = slug || generateSlug(title)
 
-    // Map frontend status to database status
-    let status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' = 'DRAFT'
-    if (body.status === 'Actief') status = 'PUBLISHED'
-    if (body.status === 'Inactief') status = 'ARCHIVED'
-
-    // Map frontend difficulty to database level
-    let level = 'beginner'
-    if (body.difficulty === 'Intermediate') level = 'intermediate'
-    if (body.difficulty === 'Expert') level = 'expert'
-
-    const createData: any = {
-      orgId: body.orgId || 'default-org',
-      title: body.title,
-      slug: slug,
-      description: body.description || '',
-      summary: body.summary || '',
-      level: level,
-      tags: Array.isArray(body.tags) ? JSON.stringify(body.tags) : '[]',
-      status: status
-    }
-
-    const newCourse = await prisma.course.create({
-      data: createData
+    // Check if slug already exists
+    const existingCourse = await prisma.course.findUnique({
+      where: { slug: courseSlug }
     })
 
-    // Create CourseOnModule relations if moduleIds are provided
-    if (body.includedModules && Array.isArray(body.includedModules) && body.includedModules.length > 0) {
-      console.log('📚 [API] Connecting modules to new course:', body.includedModules)
-      
-      const moduleConnections = body.includedModules.map((moduleId: string, index: number) => ({
-        courseId: newCourse.id,
-        moduleId: moduleId,
-        order: index
-      }))
-
-      await prisma.courseOnModule.createMany({
-        data: moduleConnections
-      })
+    if (existingCourse) {
+      return NextResponse.json(
+        { error: 'Course with this slug already exists' },
+        { status: 400 }
+      )
     }
 
-    // Fetch the complete course with all relations for response
-    const completeCourse = await prisma.course.findUnique({
-      where: { id: newCourse.id },
-      include: {
-        modules: {
-          include: {
-            module: {
-              include: {
-                lessons: {
-                  include: {
-                    lesson: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        enrollments: {
-          select: {
-            id: true,
-            progress: true
-          }
+    // Get first organization for demo purposes
+    const organization = await prisma.organization.findFirst()
+    if (!organization) {
+      // Create a default organization if none exists
+      const defaultOrg = await prisma.organization.create({
+        data: {
+          name: 'Default Organization',
+          slug: 'default-org'
         }
+      })
+      console.log('✅ Created default organization:', defaultOrg.id)
+    }
+
+    const org = organization || await prisma.organization.findFirst()
+    if (!org) {
+      return NextResponse.json(
+        { error: 'No organization available' },
+        { status: 400 }
+      )
+    }
+
+    // Create course
+    const course = await prisma.course.create({
+      data: {
+        title: title.trim(),
+        description: description.trim(),
+        status,
+        level,
+        tags: JSON.stringify(tags),
+        slug: courseSlug,
+        order: safeNumber(order),
+        duration: safeNumber(duration),
+        difficulty,
+        category,
+        moduleCount: safeNumber(modules),
+        enrollmentCount: safeNumber(enrollments),
+        certificateCount: safeNumber(certificates),
+        completionRate: safeNumber(completionRate),
+        orgId: org.id
       }
     })
 
-    if (!completeCourse) {
-      throw new Error('Failed to fetch created course')
-    }
+    console.log('✅ Course created successfully:', course.id)
 
-    // Calculate total lessons for duration
-    const totalLessons = completeCourse.modules.reduce((acc, courseModule) => {
-      return acc + (courseModule.module.lessons?.length || 0)
-    }, 0)
-
-    // Calculate average progress
-    const averageProgress = completeCourse.enrollments.length > 0 
-      ? Math.round(completeCourse.enrollments.reduce((acc, enrollment) => acc + enrollment.progress, 0) / completeCourse.enrollments.length)
-      : 0
-
-    // Transform the response
+    // Transform response
     const transformedCourse = {
-      id: completeCourse.id,
-      title: completeCourse.title,
-      description: completeCourse.description || '',
-      status: status === 'PUBLISHED' ? 'Actief' : status === 'DRAFT' ? 'Concept' : 'Inactief',
-      students: completeCourse.enrollments.length,
-      progress: averageProgress,
-      modules: completeCourse.modules.length,
-      category: completeCourse.level || '',
-      order: 0,
-      createdAt: completeCourse.createdAt.toISOString().split('T')[0],
-      updatedAt: completeCourse.updatedAt.toISOString().split('T')[0],
-      duration: totalLessons,
-      difficulty: level === 'intermediate' ? 'Intermediate' : level === 'expert' ? 'Expert' : 'Beginner',
-      tags: completeCourse.tags ? JSON.parse(completeCourse.tags) : [],
-      includedModules: completeCourse.modules.map(cm => cm.moduleId)
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      status: course.status as 'Concept' | 'Actief' | 'Inactief',
+      level: course.level,
+      tags: course.tags ? JSON.parse(course.tags) : [],
+      slug: course.slug,
+      order: safeNumber(course.order),
+      duration: safeNumber(course.duration),
+      difficulty: course.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: course.category || 'Uncategorized',
+      modules: safeNumber(course.moduleCount),
+      enrollments: safeNumber(course.enrollmentCount),
+      certificates: safeNumber(course.certificateCount),
+      completionRate: safeNumber(course.completionRate),
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString(),
+      moduleCount: safeNumber(course.moduleCount)
     }
 
-    console.log('✅ [API] Course created successfully:', transformedCourse.title)
     return NextResponse.json(transformedCourse, { status: 201 })
-  } catch (error) {
-    console.error('❌ [API] Error creating course:', error)
+
+  } catch (error: any) {
+    console.error('❌ Error creating course:', error)
     return NextResponse.json(
-      { error: 'Failed to create course' },
+      { error: 'Failed to create course: ' + error.message },
       { status: 500 }
     )
   }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    console.log('✏️ PUT /api/courses - Updating course')
+    
+    const body = await request.json()
+    console.log('📦 Request body:', body)
+
+    const {
+      id,
+      title,
+      description,
+      status,
+      level,
+      tags = [],
+      slug,
+      order,
+      duration,
+      difficulty,
+      category,
+      modules,
+      enrollments,
+      certificates,
+      completionRate
+    } = body
+
+    // Validation
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!title || !description || !category) {
+      return NextResponse.json(
+        { error: 'Title, description and category are required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if course exists
+    const existingCourse = await prisma.course.findUnique({
+      where: { id }
+    })
+
+    if (!existingCourse) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if slug is being changed and if it's already taken
+    if (slug && slug !== existingCourse.slug) {
+      const courseWithSlug = await prisma.course.findUnique({
+        where: { slug }
+      })
+
+      if (courseWithSlug) {
+        return NextResponse.json(
+          { error: 'Course with this slug already exists' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update course
+    const courseSlug = slug || existingCourse.slug
+
+    const updatedCourse = await prisma.course.update({
+      where: { id },
+      data: {
+        title: title.trim(),
+        description: description.trim(),
+        status: status || existingCourse.status,
+        level: level || existingCourse.level,
+        tags: JSON.stringify(tags),
+        slug: courseSlug,
+        order: order !== undefined ? safeNumber(order) : existingCourse.order,
+        duration: duration !== undefined ? safeNumber(duration) : existingCourse.duration,
+        difficulty: difficulty || existingCourse.difficulty,
+        category: category || existingCourse.category,
+        moduleCount: modules !== undefined ? safeNumber(modules) : existingCourse.moduleCount,
+        enrollmentCount: enrollments !== undefined ? safeNumber(enrollments) : existingCourse.enrollmentCount,
+        certificateCount: certificates !== undefined ? safeNumber(certificates) : existingCourse.certificateCount,
+        completionRate: completionRate !== undefined ? safeNumber(completionRate) : existingCourse.completionRate,
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('✅ Course updated successfully:', updatedCourse.id)
+
+    // Transform response
+    const transformedCourse = {
+      id: updatedCourse.id,
+      title: updatedCourse.title,
+      description: updatedCourse.description,
+      status: updatedCourse.status as 'Concept' | 'Actief' | 'Inactief',
+      level: updatedCourse.level,
+      tags: updatedCourse.tags ? JSON.parse(updatedCourse.tags) : [],
+      slug: updatedCourse.slug,
+      order: safeNumber(updatedCourse.order),
+      duration: safeNumber(updatedCourse.duration),
+      difficulty: updatedCourse.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: updatedCourse.category || 'Uncategorized',
+      modules: safeNumber(updatedCourse.moduleCount),
+      enrollments: safeNumber(updatedCourse.enrollmentCount),
+      certificates: safeNumber(updatedCourse.certificateCount),
+      completionRate: safeNumber(updatedCourse.completionRate),
+      createdAt: updatedCourse.createdAt.toISOString(),
+      updatedAt: updatedCourse.updatedAt.toISOString(),
+      moduleCount: safeNumber(updatedCourse.moduleCount)
+    }
+
+    return NextResponse.json(transformedCourse)
+
+  } catch (error: any) {
+    console.error('❌ Error updating course:', error)
+    return NextResponse.json(
+      { error: 'Failed to update course: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// NIEUW: DELETE method voor het verwijderen van courses
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('🗑️ DELETE /api/courses - Deleting course')
+    
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if course exists
+    const existingCourse = await prisma.course.findUnique({
+      where: { id }
+    })
+
+    if (!existingCourse) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete course
+    await prisma.course.delete({
+      where: { id }
+    })
+
+    console.log('✅ Course deleted successfully:', id)
+
+    return NextResponse.json({ 
+      message: 'Course deleted successfully',
+      id: id
+    })
+
+  } catch (error: any) {
+    console.error('❌ Error deleting course:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete course: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// NIEUW: PATCH method voor status updates
+export async function PATCH(request: NextRequest) {
+  try {
+    console.log('⚡ PATCH /api/courses - Updating course status')
+    
+    const body = await request.json()
+    console.log('📦 Request body:', body)
+
+    const { id, status } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Status is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if course exists
+    const existingCourse = await prisma.course.findUnique({
+      where: { id }
+    })
+
+    if (!existingCourse) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update only the status
+    const updatedCourse = await prisma.course.update({
+      where: { id },
+      data: {
+        status: status,
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('✅ Course status updated successfully:', updatedCourse.id)
+
+    const transformedCourse = {
+      id: updatedCourse.id,
+      title: updatedCourse.title,
+      description: updatedCourse.description,
+      status: updatedCourse.status as 'Concept' | 'Actief' | 'Inactief',
+      level: updatedCourse.level,
+      tags: updatedCourse.tags ? JSON.parse(updatedCourse.tags) : [],
+      slug: updatedCourse.slug,
+      order: safeNumber(updatedCourse.order),
+      duration: safeNumber(updatedCourse.duration),
+      difficulty: updatedCourse.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: updatedCourse.category || 'Uncategorized',
+      modules: safeNumber(updatedCourse.moduleCount),
+      enrollments: safeNumber(updatedCourse.enrollmentCount),
+      certificates: safeNumber(updatedCourse.certificateCount),
+      completionRate: safeNumber(updatedCourse.completionRate),
+      createdAt: updatedCourse.createdAt.toISOString(),
+      updatedAt: updatedCourse.updatedAt.toISOString(),
+      moduleCount: safeNumber(updatedCourse.moduleCount)
+    }
+
+    return NextResponse.json(transformedCourse)
+
+  } catch (error: any) {
+    console.error('❌ Error updating course status:', error)
+    return NextResponse.json(
+      { error: 'Failed to update course status: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// Helper function to generate slug
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w ]+/g, '')
+    .replace(/ +/g, '-')
+    .substring(0, 100)
 }

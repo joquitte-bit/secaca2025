@@ -1,14 +1,13 @@
-// src/components/LessonEditor.tsx - COMPLEET GEFIXT
+// src/components/courses/CourseEditor.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
 
-interface Lesson {
+interface Course {
   id: string
   title: string
   description: string
-  content: string
   status: 'Concept' | 'Actief' | 'Inactief'
   level: string
   tags: string[]
@@ -21,36 +20,56 @@ interface Lesson {
   enrollments: number
   certificates: number
   completionRate: number
-  type: 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD'
-  videoUrl: string
   createdAt: string
   updatedAt: string
   moduleCount: number
-  // Optionele properties voor backward compatibility
-  isFree?: boolean
-  quizQuestions?: number
 }
 
-interface LessonEditorProps {
-  lesson: Lesson | null
+interface Module {
+  id: string
+  title: string
+  description: string | null
+  order: number
+  duration: number | null
+  category: string | null
+  status: string | null
+  difficulty: string | null
+  tags: string | null
+}
+
+interface CourseEditorProps {
+  course: Course | null
   categories: string[]
   onClose: () => void
-  onSave: (lesson: Lesson) => void
+  onSave: (course: Course) => void
 }
 
 // Safe number functie
 const safeNumber = (value: any, fallback: number = 0): number => {
-  if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+  if (value === null || value === undefined || isNaN(value)) {
     return fallback
   }
   return Number(value)
 }
 
-export default function LessonEditor({ lesson, categories, onClose, onSave }: LessonEditorProps) {
+// Fallback delete icon component
+const DeleteIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+)
+
+// Fallback modules icon component
+const ModulesIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+  </svg>
+)
+
+export default function CourseEditor({ course, categories, onClose, onSave }: CourseEditorProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    content: '',
     status: 'Concept' as 'Concept' | 'Actief' | 'Inactief',
     level: '',
     tags: [] as string[],
@@ -60,8 +79,6 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
     difficulty: 'Beginner' as 'Beginner' | 'Intermediate' | 'Expert',
     category: '',
     modules: 0,
-    type: 'TEXT' as 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD',
-    videoUrl: '',
   })
 
   const [aiInput, setAiInput] = useState('')
@@ -69,6 +86,10 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
   const [tagInput, setTagInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [allModules, setAllModules] = useState<Module[]>([])
+  const [selectedModules, setSelectedModules] = useState<string[]>([]) // Store module IDs
+  const [moduleSearch, setModuleSearch] = useState('')
+  const [isLoadingModules, setIsLoadingModules] = useState(false)
 
   // Default categories
   const defaultCategories = [
@@ -86,31 +107,34 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
 
   const availableCategories = categories && categories.length > 0 ? categories : defaultCategories
 
-  // Initialize form with lesson data when editing
+  // Load all modules from database
   useEffect(() => {
-    if (lesson) {
+    fetchAllModules()
+  }, [])
+
+  // Initialize form with course data when editing
+  useEffect(() => {
+    if (course) {
       setFormData({
-        title: lesson.title || '',
-        description: lesson.description || '',
-        content: lesson.content || '',
-        status: lesson.status || 'Concept',
-        level: lesson.level || '',
-        tags: lesson.tags || [],
-        slug: lesson.slug || '',
-        order: safeNumber(lesson.order),
-        duration: safeNumber(lesson.duration),
-        difficulty: lesson.difficulty || 'Beginner',
-        category: lesson.category || '',
-        modules: safeNumber(lesson.modules),
-        type: lesson.type || 'TEXT',
-        videoUrl: lesson.videoUrl || '',
+        title: course.title || '',
+        description: course.description || '',
+        status: course.status || 'Concept',
+        level: course.level || '',
+        tags: course.tags || [],
+        slug: course.slug || '',
+        order: safeNumber(course.order),
+        duration: safeNumber(course.duration),
+        difficulty: course.difficulty || 'Beginner',
+        category: course.category || '',
+        modules: safeNumber(course.modules),
       })
+      // Load course modules
+      loadCourseModules(course.id)
     } else {
-      // Reset form for new lesson
+      // Reset form for new course
       setFormData({
         title: '',
         description: '',
-        content: '',
         status: 'Concept',
         level: '',
         tags: [],
@@ -120,11 +144,46 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
         difficulty: 'Beginner',
         category: availableCategories[0] || '',
         modules: 0,
-        type: 'TEXT',
-        videoUrl: '',
       })
+      setSelectedModules([])
     }
-  }, [lesson, availableCategories])
+  }, [course, availableCategories])
+
+  const fetchAllModules = async () => {
+    try {
+      setIsLoadingModules(true)
+      console.log('🔄 Fetching all modules...')
+      
+      const response = await fetch('/api/modules')
+      
+      if (response.ok) {
+        const modules = await response.json()
+        console.log('📚 Modules fetched:', modules)
+        setAllModules(modules)
+      } else {
+        console.error('Failed to fetch modules')
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error)
+    } finally {
+      setIsLoadingModules(false)
+    }
+  }
+
+  const loadCourseModules = async (courseId: string) => {
+    try {
+      console.log(`🔄 Loading modules for course: ${courseId}`)
+      const response = await fetch(`/api/courses/${courseId}/modules`)
+      
+      if (response.ok) {
+        const courseModules = await response.json()
+        const moduleIds = courseModules.map((cm: any) => cm.moduleId)
+        setSelectedModules(moduleIds)
+      }
+    } catch (error) {
+      console.error('Error loading course modules:', error)
+    }
+  }
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -149,16 +208,14 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
       // Update form with AI data
       setFormData(prev => ({
         ...prev,
-        title: parsedData.title || parsedData.lesson_title || parsedData.name || prev.title,
-        description: parsedData.description || parsedData.lesson_description || parsedData.summary || prev.description,
+        title: parsedData.title || parsedData.course_title || parsedData.name || prev.title,
+        description: parsedData.description || parsedData.course_description || parsedData.summary || prev.description,
         category: parsedData.category || parsedData.topic || prev.category || availableCategories[0],
         duration: safeNumber(parsedData.duration || parsedData.duration_minutes || parsedData.time_required || prev.duration),
         difficulty: parsedData.difficulty || parsedData.difficulty_level || parsedData.level || prev.difficulty,
         level: parsedData.level || parsedData.audience_level || prev.level,
         modules: safeNumber(parsedData.modules || parsedData.module_count || prev.modules),
-        tags: parsedData.tags || parsedData.keywords || prev.tags,
-        type: parsedData.type || parsedData.lesson_type || prev.type,
-        content: parsedData.content || parsedData.lesson_content || prev.content
+        tags: parsedData.tags || parsedData.keywords || prev.tags
       }))
 
       // Clear AI input and hide section
@@ -199,9 +256,9 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
     const levelMatch = text.match(/Niveau:\s*(.+)/i)
     if (levelMatch) result.level = levelMatch[1]
 
-    // Extract type
-    const typeMatch = text.match(/Type:\s*(TEXT|VIDEO|QUIZ|DOWNLOAD)/i)
-    if (typeMatch) result.type = typeMatch[1]
+    // Extract modules
+    const modulesMatch = text.match(/Modules:\s*(\d+)/i)
+    if (modulesMatch) result.modules = safeNumber(modulesMatch[1])
 
     return result
   }
@@ -223,6 +280,24 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
     }))
   }
 
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^\w ]+/g, '')
+      .replace(/ +/g, '-')
+  }
+
+  const toggleModuleSelection = (moduleId: string) => {
+    setSelectedModules(prev => {
+      const isAlreadySelected = prev.includes(moduleId)
+      if (isAlreadySelected) {
+        return prev.filter(id => id !== moduleId)
+      } else {
+        return [...prev, moduleId]
+      }
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -235,93 +310,139 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
     setIsLoading(true)
 
     try {
-      // Prepare lesson data
-      const lessonData = {
+      // Generate slug if empty
+      const slug = formData.slug || generateSlug(formData.title)
+
+      // Calculate total duration from selected modules
+      const totalDuration = allModules
+        .filter(module => selectedModules.includes(module.id))
+        .reduce((acc, module) => acc + safeNumber(module.duration), 0)
+
+      // Prepare course data
+      const courseData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        content: formData.content || '',
         status: formData.status,
+        category: formData.category,
+        duration: totalDuration || safeNumber(formData.duration),
+        difficulty: formData.difficulty,
         level: formData.level.trim() || 'Introductie',
         tags: formData.tags,
+        slug: slug,
         order: safeNumber(formData.order),
-        duration: safeNumber(formData.duration),
-        difficulty: formData.difficulty,
-        category: formData.category,
-        modules: safeNumber(formData.modules),
-        type: formData.type,
-        videoUrl: formData.videoUrl || ''
+        modules: selectedModules.length,
+        enrollments: course?.enrollments || 0,
+        certificates: course?.certificates || 0,
+        completionRate: course?.completionRate || 0,
       }
 
       // For edit, add ID
-      if (lesson?.id) {
-        (lessonData as any).id = lesson.id
+      if (course?.id) {
+        (courseData as any).id = course.id
       }
 
-      console.log('💾 Saving lesson to database:', lessonData)
+      console.log('💾 Saving course to database:', courseData)
 
-      // API call for lesson
-      const url = '/api/lessons'
-      const method = lesson?.id ? 'PUT' : 'POST'
+      // API call for course
+      const url = '/api/courses'
+      const method = course?.id ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(lessonData),
+        body: JSON.stringify(courseData),
       })
 
       console.log('📡 API Response status:', response.status)
 
       if (!response.ok) {
-        // Better error handling for empty responses
-        let errorMessage = `Server error: ${response.status}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (jsonError) {
-          // If JSON parsing fails, use status text
-          errorMessage = response.statusText || errorMessage
-        }
-        throw new Error(errorMessage)
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to ${course?.id ? 'update' : 'create'} course`)
       }
 
-      const savedLesson = await response.json()
-      console.log('✅ Lesson saved successfully:', savedLesson)
+      const savedCourse = await response.json()
+      console.log('✅ Course saved successfully:', savedCourse)
+      
+      // Save course-module relationships
+      if (selectedModules.length > 0) {
+        await saveCourseModules(savedCourse.id, selectedModules)
+      }
       
       // Call onSave with saved data
-      onSave(savedLesson)
+      onSave(savedCourse)
       
       // Show success modal
       setShowSuccessModal(true)
       
     } catch (error: any) {
       console.error('❌ Save error:', error)
-      alert(`Fout bij opslaan lesson: ${error.message}`)
+      alert(`Fout bij opslaan course: ${error.message}`)
     } finally {
       setIsLoading(false)
     }
   }
+
+const saveCourseModules = async (courseId: string, moduleIds: string[]) => {
+  try {
+    console.log(`💾 Saving course-module relationships for course: ${courseId}`)
+    
+    const response = await fetch(`/api/courses/${courseId}/modules`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ moduleIds }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to save course-module relationships')
+    }
+
+    console.log('✅ Course-module relationships saved successfully')
+  } catch (error) {
+    console.error('❌ Error saving course-module relationships:', error)
+    throw error
+  }
+}
 
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false)
     onClose()
   }
 
+  // Filter modules based on search
+  const filteredModules = allModules.filter(module => {
+    if (!moduleSearch.trim()) return true
+    
+    const searchTerm = moduleSearch.toLowerCase()
+    return (
+      module.title.toLowerCase().includes(searchTerm) ||
+      (module.description && module.description.toLowerCase().includes(searchTerm))
+    )
+  })
+
+  // Calculate total duration for display
+  const totalDuration = allModules
+    .filter(module => selectedModules.includes(module.id))
+    .reduce((acc, module) => acc + safeNumber(module.duration), 0)
+
   return (
     <>
       {/* Main Editor Modal */}
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {lesson ? 'Lesson Bewerken' : 'Nieuwe Lesson Maken'}
+                  {course ? 'Course Bewerken' : 'Nieuwe Course Maken'}
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  {lesson ? 'Bewerk de lesson details' : 'Maak een nieuwe lesson aan'}
+                  {course ? 'Bewerk de course details' : 'Maak een nieuwe course aan'}
                 </p>
               </div>
               <button
@@ -359,24 +480,24 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
                         placeholder={`Plak hier je ChatGPT output...
 
 Voorbeeld format:
-Titel: Phishing Herkenning
-Beschrijving: Leer phishing emails herkennen en voorkomen
+Titel: Cybersecurity Fundamentals
+Beschrijving: Leer de basisprincipes van cybersecurity en bescherm jezelf online
 Categorie: Security Basics
-Duur: 30
+Duur: 120
 Moeilijkheid: Beginner
 Niveau: Introductie
-Type: TEXT
+Modules: 5
 
 Of gebruik JSON format:
 {
-  "title": "Phishing Herkenning",
-  "description": "Leer phishing emails herkennen...",
+  "title": "Cybersecurity Fundamentals",
+  "description": "Leer de basisprincipes...",
   "category": "Security Basics",
-  "duration": 30,
+  "duration": 120,
   "difficulty": "Beginner",
   "level": "Introductie",
-  "type": "TEXT",
-  "tags": ["phishing", "security"]
+  "modules": 5,
+  "tags": ["cybersecurity", "basics"]
 }`}
                         rows={8}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -411,7 +532,7 @@ Of gebruik JSON format:
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Bijv: Phishing Herkenning"
+                    placeholder="Bijv: Cybersecurity Fundamentals"
                     required
                     disabled={isLoading}
                   />
@@ -446,46 +567,130 @@ Of gebruik JSON format:
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Korte beschrijving van de lesson..."
+                  placeholder="Korte beschrijving van de course..."
                   required
                   disabled={isLoading}
                 />
               </div>
 
-              {/* Content */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Inhoud
-                </label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
-                  rows={5}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Gedetailleerde inhoud van de lesson..."
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Lesson Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
+              {/* Modules Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Modules Selecteren</h3>
+                
+                {/* Search Modules */}
+                <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type
+                    Zoek Modules
                   </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => handleInputChange('type', e.target.value)}
+                  <input
+                    type="text"
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Zoek op module titel of beschrijving..."
                     disabled={isLoading}
-                  >
-                    <option value="TEXT">Text</option>
-                    <option value="VIDEO">Video</option>
-                    <option value="QUIZ">Quiz</option>
-                    <option value="DOWNLOAD">Download</option>
-                  </select>
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {filteredModules.length} van {allModules.length} modules gevonden
+                    {moduleSearch && ` voor "${moduleSearch}"`}
+                  </p>
                 </div>
 
+                {/* Available Modules List */}
+                <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                  {isLoadingModules ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      Modules laden...
+                    </div>
+                  ) : filteredModules.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <ModulesIcon className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                      {moduleSearch ? 'Geen modules gevonden voor je zoekopdracht' : 'Geen modules beschikbaar'}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {filteredModules.map((module) => {
+                        const isSelected = selectedModules.includes(module.id)
+                        return (
+                          <div
+                            key={module.id}
+                            className={`p-4 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'
+                            }`}
+                            onClick={() => toggleModuleSelection(module.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleModuleSelection(module.id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                  <div>
+                                    <h4 className="font-medium text-gray-900">{module.title}</h4>
+                                    <p className="text-sm text-gray-600">{module.description}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {safeNumber(module.duration)} minuten • {module.category || 'Geen categorie'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Modules Summary */}
+                <div className="mt-4">
+                  <h4 className="font-medium text-gray-700 mb-2">
+                    Geselecteerde Modules ({selectedModules.length})
+                  </h4>
+                  {selectedModules.length === 0 ? (
+                    <p className="text-sm text-gray-500">Nog geen modules geselecteerd</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedModules.map((moduleId, index) => {
+                        const module = allModules.find(m => m.id === moduleId)
+                        if (!module) return null
+                        
+                        return (
+                          <div key={moduleId} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="flex items-center space-x-3">
+                              <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
+                                {index + 1}
+                              </span>
+                              <div>
+                                <h5 className="font-medium text-gray-900">{module.title}</h5>
+                                <p className="text-xs text-gray-600">
+                                  {safeNumber(module.duration)} minuten • {module.category || 'Geen categorie'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => toggleModuleSelection(moduleId)}
+                              className="text-red-600 hover:text-red-800"
+                              disabled={isLoading}
+                            >
+                              <DeleteIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Course Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Moeilijkheid
@@ -504,16 +709,30 @@ Of gebruik JSON format:
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duur (min)
+                    Niveau
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.level}
+                    onChange={(e) => handleInputChange('level', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Bijv: Introductie"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Totale Duur (min)
                   </label>
                   <input
                     type="number"
-                    value={formData.duration}
-                    onChange={(e) => handleInputChange('duration', safeNumber(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={totalDuration}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
                     min="0"
-                    disabled={isLoading}
+                    disabled
                   />
+                  <p className="text-xs text-gray-500 mt-1">Automatisch berekend</p>
                 </div>
 
                 <div>
@@ -537,14 +756,14 @@ Of gebruik JSON format:
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Niveau
+                    Slug
                   </label>
                   <input
                     type="text"
-                    value={formData.level}
-                    onChange={(e) => handleInputChange('level', e.target.value)}
+                    value={formData.slug}
+                    onChange={(e) => handleInputChange('slug', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Bijv: Introductie"
+                    placeholder="auto-generated-slug"
                     disabled={isLoading}
                   />
                 </div>
@@ -564,79 +783,56 @@ Of gebruik JSON format:
                 </div>
               </div>
 
-              {/* Video URL (only show for VIDEO type) */}
-              {formData.type === 'VIDEO' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Video URL
-                  </label>
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags
+                </label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        disabled={isLoading}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex space-x-2">
                   <input
-                    type="url"
-                    value={formData.videoUrl}
-                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://example.com/video.mp4"
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Voeg tag toe..."
                     disabled={isLoading}
                   />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Toevoegen
+                  </button>
                 </div>
-              )}
-
-// In je LessonEditor.tsx - zoek de tags sectie en vervang deze:
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {Array.isArray(formData.tags) ? (
-                      formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="ml-2 text-blue-600 hover:text-blue-800"
-                            disabled={isLoading}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">Geen tags</p>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Voeg tag toe..."
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTag}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                      disabled={isLoading}
-                    >
-                      Toevoegen
-                    </button>
-                  </div>
-                </div>
+              </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  {formData.type} • {formData.duration} minuten
+                  {selectedModules.length} modules • {totalDuration} minuten totaal
                 </div>
                 <div className="flex items-center space-x-3">
                   <button
@@ -656,7 +852,7 @@ Of gebruik JSON format:
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
-                    {isLoading ? 'Opslaan...' : (lesson ? 'Bijwerken' : 'Lesson Aanmaken')}
+                    {isLoading ? 'Opslaan...' : (course ? 'Bijwerken' : 'Course Aanmaken')}
                   </button>
                 </div>
               </div>
@@ -681,7 +877,7 @@ Of gebruik JSON format:
               </h3>
               
               <p className="text-gray-600">
-                De lesson is succesvol opgeslagen in het systeem.
+                De course is succesvol opgeslagen in het systeem.
               </p>
             </div>
 

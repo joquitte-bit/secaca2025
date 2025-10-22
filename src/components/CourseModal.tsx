@@ -7,130 +7,102 @@ import { Icons } from './Icons'
 interface Module {
   id: string
   title: string
-  duration: number
-  category: string
-  status: 'Actief' | 'Inactief' | 'Concept'
-  lessons: number
+  description?: string
+  duration?: number
+  difficulty?: string
+  category?: string
+  status?: string
+  lessons?: number
+  order?: number
+  tags?: string[]
 }
 
 interface Course {
-  id?: number
+  id?: string
   title: string
   description: string
+  summary: string
+  status: 'Concept' | 'Actief' | 'Inactief'
+  level: string
+  tags: string[]
+  slug: string
+  order: number
+  duration: number
+  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
   category: string
-  difficulty?: 'Beginner' | 'Intermediate' | 'Expert'
-  status: 'Actief' | 'Inactief' | 'Concept'
-  tags?: string[]
   includedModules?: string[]
-  order?: number
-  students?: number
-  progress?: number
-  modules?: number
-  duration?: number
-  createdAt?: string
-  updatedAt?: string
+  orgId?: string
 }
 
 interface CourseModalProps {
   course: Course | null
-  categories: string[]
+  levels: string[]
   onClose: () => void
-  onSave: (courseData: any) => void
+  onSave: (course: Course) => void
 }
 
-export function CourseModal({ course, categories, onClose, onSave }: CourseModalProps) {
-  const [formData, setFormData] = useState<Course>({
-    title: '',
-    description: '',
-    category: '',
-    difficulty: 'Beginner',
-    status: 'Concept',
-    tags: [],
-    includedModules: [],
-    order: 0
-  })
-
+export function CourseModal({ course, levels, onClose, onSave }: CourseModalProps) {
+  const [title, setTitle] = useState(course?.title || '')
+  const [description, setDescription] = useState(course?.description || '')
+  const [summary, setSummary] = useState(course?.summary || '')
+  const [status, setStatus] = useState<'Concept' | 'Actief' | 'Inactief'>(course?.status || 'Concept')
+  const [level, setLevel] = useState(course?.level || levels[0] || '')
+  const [slug, setSlug] = useState(course?.slug || '')
+  const [order, setOrder] = useState(course?.order || 1)
+  const [duration, setDuration] = useState(course?.duration || 0)
+  const [difficulty, setDifficulty] = useState<'Beginner' | 'Intermediate' | 'Expert'>(course?.difficulty || 'Beginner')
+  const [category, setCategory] = useState(course?.category || '')
+  const [tags, setTags] = useState<string[]>(course?.tags || [])
   const [tagInput, setTagInput] = useState('')
-  const [moduleSearch, setModuleSearch] = useState('')
-  const [selectedModuleCategory, setSelectedModuleCategory] = useState('')
+  const [modules, setModules] = useState<Module[]>([])
+  const [includedModules, setIncludedModules] = useState<string[]>(course?.includedModules || [])
+  const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [availableModules, setAvailableModules] = useState<Module[]>([])
 
-  // Fetch available modules from API
+  // Haal modules op bij het openen van de modal
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        // Mock modules data die overeenkomt met wat in modules pagina wordt getoond
-        const mockModules: Module[] = [
-          { 
-            id: '1', 
-            title: 'Security Basics Training', 
-            duration: 60, 
-            category: 'Security Basics', 
-            status: 'Actief', 
-            lessons: 3 
-          },
-          { 
-            id: '2', 
-            title: 'Geavanceerde Bedreigingen', 
-            duration: 45, 
-            category: 'Advanced Security', 
-            status: 'Actief', 
-            lessons: 1 
-          },
-          { 
-            id: '3', 
-            title: 'Phishing Awareness', 
-            duration: 30, 
-            category: 'Security Basics', 
-            status: 'Actief', 
-            lessons: 2 
-          },
-          { 
-            id: '4', 
-            title: 'Data Protection', 
-            duration: 75, 
-            category: 'Data Security', 
-            status: 'Actief', 
-            lessons: 4 
-          },
-          { 
-            id: '5', 
-            title: 'Social Engineering Defense', 
-            duration: 50, 
-            category: 'Advanced Security', 
-            status: 'Concept', 
-            lessons: 2 
-          },
-        ]
-        setAvailableModules(mockModules)
+        setIsLoading(true)
+        const response = await fetch('/api/modules')
+        if (response.ok) {
+          const data = await response.json()
+          console.log('📚 Modules fetched:', data)
+          setModules(Array.isArray(data) ? data : [])
+        }
       } catch (error) {
         console.error('Error fetching modules:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     fetchModules()
   }, [])
 
+  // Haal gekoppelde modules op bij bewerken
   useEffect(() => {
-    if (course) {
-      setFormData({
-        title: course.title || '',
-        description: course.description || '',
-        category: course.category || '',
-        difficulty: course.difficulty || 'Beginner',
-        status: course.status || 'Concept',
-        tags: course.tags || [],
-        includedModules: course.includedModules || [],
-        order: course.order || 0
-      })
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        order: categories.length > 0 ? categories.length + 1 : 1
-      }))
+    const fetchCourseModules = async () => {
+      if (course?.id) {
+        try {
+          console.log('🔍 Fetching modules for course:', course.id)
+          const response = await fetch(`/api/courses/${course.id}/modules`)
+          if (response.ok) {
+            const courseData = await response.json()
+            console.log('📚 Loaded course modules:', courseData)
+            // Update de includedModules met de daadwerkelijk gekoppelde modules
+            if (Array.isArray(courseData)) {
+              setIncludedModules(courseData.map((courseModule: any) => courseModule.moduleId))
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching course modules:', error)
+        }
+      }
     }
-  }, [course, categories])
+
+    fetchCourseModules()
+  }, [course?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -139,411 +111,320 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
     setIsSubmitting(true)
 
     try {
-      // Calculate totals based on selected modules
-      const selectedModules = availableModules.filter(module => 
-        formData.includedModules?.includes(module.id)
-      )
-      const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
-      const totalLessons = selectedModules.reduce((total, module) => total + module.lessons, 0)
+      // 📍 GEBRUIK EEN ECHTE ORGANIZATION ID - vervang met een ID uit Prisma Studio
+      const orgId = course?.orgId || 'cmgy9he28000487zak1dq4e0t'
       
-      // Prepare course data
-      const courseData = {
-        ...formData,
-        modules: formData.includedModules?.length || 0,
-        duration: totalDuration,
-        students: course?.students || 0,
-        progress: course?.progress || 0,
-        createdAt: course?.createdAt || new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
+      const courseData: Course = {
+        id: course?.id,
+        title,
+        description,
+        summary,
+        status,
+        level,
+        tags,
+        slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
+        order,
+        duration,
+        difficulty,
+        category: level, // Gebruik level als category voor consistentie
+        includedModules,
+        orgId: orgId
       }
 
-      // Simuleer API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('💾 Saving course data:', courseData)
+      console.log('🏢 Using orgId:', orgId)
       
-      onSave(courseData)
-      onClose()
+      await onSave(courseData)
+      console.log('✅ Course saved to database:', courseData)
     } catch (error) {
-      console.error('Error saving course:', error)
-      // Fallback to local state if API fails
-      const selectedModules = availableModules.filter(module => 
-        formData.includedModules?.includes(module.id)
-      )
-      const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
-      
-      const courseData = {
-        ...formData,
-        id: course?.id || Date.now(),
-        duration: totalDuration,
-        modules: formData.includedModules?.length || 0,
-        students: course?.students || 0,
-        progress: course?.progress || 0,
-        createdAt: course?.createdAt || new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
-      }
-      onSave(courseData)
+      console.error('❌ Error saving course:', error)
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const toggleModule = (moduleId: string) => {
+    setIncludedModules(prev =>
+      prev.includes(moduleId)
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId]
+    )
+  }
+
   const addTag = () => {
-    if (tagInput.trim() && !formData.tags?.includes(tagInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), tagInput.trim()]
-      }))
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags(prev => [...prev, tagInput.trim()])
       setTagInput('')
     }
   }
 
   const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags?.filter(tag => tag !== tagToRemove) || []
-    }))
+    setTags(prev => prev.filter(tag => tag !== tagToRemove))
   }
 
-  const toggleModuleSelection = (moduleId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      includedModules: prev.includedModules?.includes(moduleId)
-        ? prev.includedModules.filter(id => id !== moduleId)
-        : [...(prev.includedModules || []), moduleId]
-    }))
-  }
-
-  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+  const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       addTag()
     }
   }
 
-  // Module filtering
-  const getFilteredModules = () => {
-    return availableModules.filter(module => {
-      const matchesSearch = module.title.toLowerCase().includes(moduleSearch.toLowerCase())
-      const matchesCategory = !selectedModuleCategory || module.category === selectedModuleCategory
-      return matchesSearch && matchesCategory
-    })
-  }
-
-  const filteredModules = getFilteredModules()
-  const selectedModules = availableModules.filter(module => formData.includedModules?.includes(module.id))
-  const totalDuration = selectedModules.reduce((total, module) => total + module.duration, 0)
-  const totalLessons = selectedModules.reduce((total, module) => total + module.lessons, 0)
-
-  const selectAllModules = () => {
-    const allModuleIds = filteredModules.map(module => module.id)
-    
-    setFormData(prev => ({
-      ...prev,
-      includedModules: 
-        prev.includedModules?.length === allModuleIds.length 
-          ? [] 
-          : allModuleIds
-    }))
-  }
-
-  // Helper functie voor status kleuren - UNIFORM MET LESSONS EN MODULES
+  // Helper functie voor status kleuren
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Actief':
-        return 'bg-green-100 text-green-800'
-      case 'Inactief':
-        return 'bg-red-100 text-red-800'
-      case 'Concept':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'Actief': return 'bg-green-100 text-green-800'
+      case 'Inactief': return 'bg-red-100 text-red-800'
+      case 'Concept': return 'bg-yellow-100 text-yellow-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  // Helper functie voor difficulty kleuren - UNIFORM MET LESSONS EN MODULES
+  // Helper functie voor difficulty kleuren
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Beginner':
-        return 'bg-green-100 text-green-800'
-      case 'Intermediate':
-        return 'bg-blue-100 text-blue-800'
-      case 'Expert':
-        return 'bg-purple-100 text-purple-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'Beginner': return 'bg-green-100 text-green-800'
+      case 'Intermediate': return 'bg-blue-100 text-blue-800'
+      case 'Expert': return 'bg-purple-100 text-purple-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
+  // Bereken totale duur van geselecteerde modules
+  const totalDuration = modules
+    .filter(module => includedModules.includes(module.id))
+    .reduce((total, module) => total + (module.duration || 0), 0)
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header - UNIFORM MET LESSONMODAL */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">
               {course ? 'Course Bewerken' : 'Nieuwe Course'}
-            </h3>
+            </h2>
             <button
               onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
               disabled={isSubmitting}
-              className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
             >
               <Icons.close className="w-6 h-6" />
             </button>
           </div>
-        </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basis Informatie - UNIFORM LAYOUT */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Titel */}
-            <div className="md:col-span-2">
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Course Titel *
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Titel *
               </label>
               <input
                 type="text"
-                id="title"
                 required
-                disabled={isSubmitting}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Bijv: Complete Security Awareness Training"
+                placeholder="Course titel"
+                disabled={isSubmitting}
               />
             </div>
 
             {/* Beschrijving */}
-            <div className="md:col-span-2">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Beschrijving *
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Beschrijving
               </label>
               <textarea
-                id="description"
-                required
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                disabled={isSubmitting}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Beschrijf de inhoud en doelstellingen van deze course..."
+                placeholder="Course beschrijving"
+                disabled={isSubmitting}
               />
             </div>
 
-            {/* Categorie */}
+            {/* Samenvatting */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                Categorie *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Samenvatting
               </label>
-              <select
-                id="category"
-                required
-                disabled={isSubmitting}
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={2}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="">Selecteer een categorie</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-                Status *
-              </label>
-              <select
-                id="status"
-                required
+                placeholder="Korte samenvatting"
                 disabled={isSubmitting}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              >
-                <option value="Concept">Concept</option>
-                <option value="Actief">Actief</option>
-                <option value="Inactief">Inactief</option>
-              </select>
-            </div>
-
-            {/* Moeilijkheidsgraad */}
-            <div>
-              <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-2">
-                Moeilijkheidsgraad
-              </label>
-              <select
-                id="difficulty"
-                disabled={isSubmitting}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.difficulty || 'Beginner'}
-                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as any })}
-              >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Expert">Expert</option>
-              </select>
-            </div>
-
-            {/* Volgorde */}
-            <div>
-              <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-2">
-                Weergave Volgorde
-              </label>
-              <input
-                type="number"
-                id="order"
-                min="1"
-                disabled={isSubmitting}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                value={formData.order}
-                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 1 })}
               />
             </div>
-          </div>
 
-          {/* Tags - UNIFORM STYLING */}
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
-              Tags
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.tags?.map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    disabled={isSubmitting}
-                    className="ml-2 text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagInputKeyDown}
-                disabled={isSubmitting}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                placeholder="Voeg een tag toe..."
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                disabled={isSubmitting}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
-              >
-                Toevoegen
-              </button>
-            </div>
-          </div>
-
-          {/* Module Selectie Sectie - UNIFORM MET LESSONMODAL'S MODULE SELECTIE */}
-          <div className="border-t border-gray-200 pt-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Niveau */}
               <div>
-                <h4 className="text-lg font-medium text-gray-900">Modules in deze Course</h4>
-                <p className="text-sm text-gray-600">
-                  Selecteer bestaande modules om aan deze course toe te voegen
-                </p>
-              </div>
-              <div className="text-sm text-gray-600">
-                {formData.includedModules?.length || 0} van {availableModules.length} modules geselecteerd
-                {totalDuration > 0 && ` • ${totalDuration} minuten totaal`}
-                {totalLessons > 0 && ` • ${totalLessons} lessen totaal`}
-              </div>
-            </div>
-
-            {/* Module Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="moduleSearch" className="block text-sm font-medium text-gray-700 mb-2">
-                  Zoek modules
-                </label>
-                <input
-                  type="text"
-                  id="moduleSearch"
-                  disabled={isSubmitting}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  value={moduleSearch}
-                  onChange={(e) => setModuleSearch(e.target.value)}
-                  placeholder="Zoek op module titel..."
-                />
-              </div>
-              <div>
-                <label htmlFor="moduleCategory" className="block text-sm font-medium text-gray-700 mb-2">
-                  Filter op categorie
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Niveau
                 </label>
                 <select
-                  id="moduleCategory"
-                  disabled={isSubmitting}
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  value={selectedModuleCategory}
-                  onChange={(e) => setSelectedModuleCategory(e.target.value)}
+                  disabled={isSubmitting}
                 >
-                  <option value="">Alle categorieën</option>
-                  {Array.from(new Set(availableModules.map(m => m.category))).map(category => (
-                    <option key={category} value={category}>{category}</option>
+                  {levels.map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
                   ))}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  <option value="Concept">Concept</option>
+                  <option value="Actief">Actief</option>
+                  <option value="Inactief">Inactief</option>
                 </select>
               </div>
             </div>
 
-            {/* Modules Lijst - UNIFORM STYLING */}
-            <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-300">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.includedModules?.length === filteredModules.length && filteredModules.length > 0}
-                      onChange={selectAllModules}
-                      disabled={isSubmitting}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Selecteer alle gefilterde modules</span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {filteredModules.length} modules gevonden
-                  </span>
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              {/* Duur */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duur (minuten)
+                </label>
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  min="0"
+                  disabled={isSubmitting}
+                />
               </div>
 
-              <div className="divide-y divide-gray-200">
-                {filteredModules.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    Geen modules gevonden met de huidige filters
+              {/* Moeilijkheid */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Moeilijkheid
+                </label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as any)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Expert">Expert</option>
+                </select>
+              </div>
+
+              {/* Volgorde */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Volgorde
+                </label>
+                <input
+                  type="number"
+                  value={order}
+                  onChange={(e) => setOrder(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  min="1"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyPress={handleTagInputKeyPress}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  placeholder="Voeg tag toe"
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  onClick={addTag}
+                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  Toevoegen
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-2 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      disabled={isSubmitting}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Lessons Selectie */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Selecteer Modules ({includedModules.length} geselecteerd) • {totalDuration} minuten totaal
+              </label>
+              <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto">
+                {isLoading ? (
+                  <div className="p-4 text-center text-gray-500">
+                    Modules laden...
+                  </div>
+                ) : modules.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    Geen modules beschikbaar
                   </div>
                 ) : (
-                  filteredModules.map(module => (
-                    <div key={module.id} className="flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50">
+                  modules.map(module => (
+                    <div
+                      key={module.id}
+                      className="flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                    >
                       <input
                         type="checkbox"
-                        checked={formData.includedModules?.includes(module.id) || false}
-                        onChange={() => toggleModuleSelection(module.id)}
+                        checked={includedModules.includes(module.id)}
+                        onChange={() => toggleModule(module.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                         disabled={isSubmitting}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <div className="ml-3 flex-1">
                         <div className="font-medium text-gray-900">
                           {module.title}
                         </div>
-                        <div className="text-sm text-gray-500 flex items-center space-x-4 mt-1">
-                          <span>{module.category}</span>
-                          <span>{module.duration} minuten</span>
-                          <span>{module.lessons} lessen</span>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getStatusColor(module.status)}`}>
-                            {module.status}
-                          </span>
+                        <div className="text-sm text-gray-500">
+                          {module.duration || 0}min • {module.difficulty || 'Beginner'} • {module.category || 'Uncategorized'}
+                          {module.status && (
+                            <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${getStatusColor(module.status)}`}>
+                              {module.status}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -551,54 +432,53 @@ export function CourseModal({ course, categories, onClose, onSave }: CourseModal
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Preview - UNIFORM MET LESSONMODAL */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Voorbeeld:</h4>
-            <div className="text-sm text-gray-600 space-y-2">
-              <p><strong>Titel:</strong> {formData.title || 'Niet ingevuld'}</p>
-              <p><strong>Categorie:</strong> {formData.category || 'Niet ingevuld'}</p>
-              <p className="flex items-center">
-                <strong>Status:</strong> 
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getStatusColor(formData.status)}`}>
-                  {formData.status || 'Niet ingevuld'}
-                </span>
-              </p>
-              <p className="flex items-center">
-                <strong>Moeilijkheidsgraad:</strong> 
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getDifficultyColor(formData.difficulty || 'Beginner')}`}>
-                  {formData.difficulty || 'Beginner'}
-                </span>
-              </p>
-              <p><strong>Aantal modules:</strong> {formData.includedModules?.length || 0}</p>
-              {totalDuration > 0 && <p><strong>Totale duur:</strong> {totalDuration} minuten</p>}
-              {totalLessons > 0 && <p><strong>Totaal lessen:</strong> {totalLessons}</p>}
+            {/* Preview */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Voorbeeld:</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p><strong>Titel:</strong> {title || 'Niet ingevuld'}</p>
+                <p><strong>Niveau:</strong> {level || 'Niet ingevuld'}</p>
+                <p className="flex items-center">
+                  <strong>Status:</strong> 
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getStatusColor(status)}`}>
+                    {status}
+                  </span>
+                </p>
+                <p className="flex items-center">
+                  <strong>Moeilijkheid:</strong> 
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getDifficultyColor(difficulty)}`}>
+                    {difficulty}
+                  </span>
+                </p>
+                <p><strong>Aantal modules:</strong> {includedModules.length}</p>
+                <p><strong>Totale duur:</strong> {totalDuration} minuten</p>
+              </div>
             </div>
-          </div>
 
-          {/* Actions - UNIFORM MET LESSONMODAL EN MODULEMODAL */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-            >
-              Annuleren
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {isSubmitting && (
-                <Icons.loading className="w-4 h-4 animate-spin" />
-              )}
-              <span>{isSubmitting ? 'Bezig...' : (course ? 'Bijwerken' : 'Course Aanmaken')}</span>
-            </button>
-          </div>
-        </form>
+            {/* Actie knoppen */}
+            <div className="flex justify-end space-x-3 pt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                Annuleren
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 flex items-center space-x-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && (
+                  <Icons.loading className="w-4 h-4 animate-spin" />
+                )}
+                <span>{isSubmitting ? 'Bezig...' : (course ? 'Bijwerken' : 'Aanmaken')}</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

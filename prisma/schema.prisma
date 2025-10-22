@@ -27,12 +27,12 @@ enum CourseStatus {
 
 enum ModuleStatus {
   DRAFT
-  Actief      // ← Kleine letters zoals in database
-  Inactief    // ← Kleine letters zoals in database
+  Actief
+  Inactief
 }
 
 enum Difficulty {
-  Beginner    // ← Kleine letters zoals in database  
+  Beginner
   Intermediate
   Expert
 }
@@ -51,7 +51,7 @@ enum LessonStatus {
 }
 
 // ====================
-// MODELS - GECORRIGEERD
+// MODELS - GECORRIGEERD VOOR SQLITE
 // ====================
 
 model Organization {
@@ -114,23 +114,30 @@ model Subscription {
 }
 
 model Course {
-  id          String       @id @default(cuid())
-  orgId       String
-  title       String
-  slug        String
-  description String?
-  summary     String?
-  level       String?
-  tags        String?
-  status      CourseStatus @default(DRAFT)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  status          String   @default("Concept")
+  level           String   @default("Introductie")
+  tags            String?  @default("[]")
+  slug            String   @unique
+  order           Int?     @default(0)      // 👈 OPTIONAL
+  duration        Int?     @default(0)      // 👈 OPTIONAL  
+  difficulty      String?  @default("Beginner") // 👈 OPTIONAL
+  category        String?  @default("Uncategorized") // 👈 OPTIONAL
+  moduleCount     Int?     @default(0)      // 👈 OPTIONAL
+  enrollmentCount Int?     @default(0)      // 👈 OPTIONAL
+  certificateCount Int?    @default(0)      // 👈 OPTIONAL
+  completionRate  Float?   @default(0)      // 👈 CHANGED TO FLOAT
+  orgId           String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  modules      CourseOnModule[]  // ✅ Many-to-many via junction table
-  enrollments  Enrollment[]
-  certificates Certificate[]
+  courseModules CourseOnModule[]
+  courseEnrollments Enrollment[]
+  courseCertificates Certificate[]
 
   @@unique([orgId, slug])
   @@index([orgId, status])
@@ -148,32 +155,42 @@ model Module {
   status      String?       @default("DRAFT")
   duration    Int?          @default(0)
   difficulty  String?       @default("BEGINNER")
-  tags        String?
+  tags        String?       // ✅ JSON string voor SQLite
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   // Relations
-  lessons LessonOnModule[]
-  courses CourseOnModule[]
+  lessonModules LessonOnModule[]
+  courseModules CourseOnModule[]
 
   @@map("modules")
 }
 
 model Lesson {
   id              String       @id @default(cuid())
-  orgId           String? // Voor organization-specific lessons
+  orgId           String? 
   title           String
   description     String?
   type            LessonType
-  content         String? // JSON string voor structured content
+  content         String?
   order           Int          @default(0)
   durationMinutes Int?
   status          LessonStatus @default(DRAFT)
-  difficulty      String? // 'beginner', 'intermediate', 'expert'
-  tags            String? // JSON string voor tags array
-  category        String? // Voor filtering
-  videoUrl        String? // Voor video lessons
+  difficulty      String?
+  tags            String?
+  category        String?
+  videoUrl        String?
+  
+  // ✅ NIEUWE VELDEN TOEGEVOEGD
+  level           String?      @default("Introductie")
+  slug            String?      @unique
+  duration        Int?         @default(0)
+  moduleCount     Int?         @default(0)
+  enrollmentCount Int?         @default(0)
+  certificateCount Int?        @default(0)
+  completionRate  Float?       @default(0)
+  
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -181,7 +198,7 @@ model Lesson {
   organization    Organization?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   quizQuestions   QuizQuestion[]
   quizAttempts    QuizAttempt[]
-  modules         LessonOnModule[]  // ✅ Many-to-many via junction table
+  lessonModules   LessonOnModule[]
 
   @@index([orgId])
   @@map("lessons")

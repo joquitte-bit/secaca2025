@@ -11,21 +11,27 @@ interface Lesson {
   id: string
   title: string
   description: string
-  status: 'Actief' | 'Inactief' | 'Concept'
-  category: string
-  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
-  duration: number
-  isFree: boolean
-  order: number
-  modules: number
-  quizQuestions: number
-  completionRate: number
+  content: string
+  status: 'Concept' | 'Actief' | 'Inactief'
+  level: string
   tags: string[]
+  slug: string
+  order: number
+  duration: number
+  difficulty: 'Beginner' | 'Intermediate' | 'Expert'
+  category: string
+  modules: number
+  enrollments: number
+  certificates: number
+  completionRate: number
+  type: 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD'
+  videoUrl: string
   createdAt: string
   updatedAt: string
-  type?: 'Video' | 'Artikel' | 'Quiz' | 'Interactief'
-  content?: string
-  videoUrl?: string
+  moduleCount: number
+  // Optionele properties voor backward compatibility
+  isFree?: boolean
+  quizQuestions?: number
 }
 
 interface Module {
@@ -710,16 +716,15 @@ export default function LessonsPage() {
                 <h2 className="text-xl font-bold mb-4">
                   {selectedLesson ? 'Les Bewerken' : 'Nieuwe Les Aanmaken'}
                 </h2>
-                <LessonEditor
-                  lesson={selectedLesson}  
-                  categories={categories}
-                  lessonTypes={lessonTypes}
-                  onClose={() => {
-                    setEditModalOpen(false)
-                    setSelectedLesson(null)
-                  }}
-                  onSave={selectedLesson ? handleLessonUpdate : handleCreateLesson}
-                />
+                    <LessonEditor
+                      lesson={selectedLesson}  
+                      categories={categories}
+                      onClose={() => {
+                        setEditModalOpen(false)
+                        setSelectedLesson(null)
+                      }}
+                      onSave={selectedLesson ? handleLessonUpdate : handleCreateLesson}
+                    />
               </div>
             </div>
           </div>

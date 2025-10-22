@@ -1,63 +1,92 @@
 // src/app/api/users/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
+import { PrismaClient, UserRole } from '@prisma/client'
 
+const prisma = new PrismaClient()
+
+// Map frontend role naar Prisma enum
+const mapRoleToEnum = (role: string): UserRole => {
+  const roleMap: { [key: string]: UserRole } = {
+    'Eigenaar': UserRole.OWNER,
+    'Beheerder': UserRole.ADMIN,
+    'Manager': UserRole.MANAGER,
+    'Cursist': UserRole.LEARNER
+  }
+  return roleMap[role] || UserRole.LEARNER
+}
+
+// Map Prisma enum naar frontend role
+const mapEnumToRole = (role: UserRole): string => {
+  const roleMap: { [key: string]: string } = {
+    'OWNER': 'Eigenaar',
+    'ADMIN': 'Beheerder',
+    'MANAGER': 'Manager',
+    'LEARNER': 'Cursist'
+  }
+  return roleMap[role] || 'Cursist'
+}
+
+// GET alle users
 export async function GET() {
   try {
-    console.log('🔄 [API] Fetching users...')
-    
     const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        image: true,
-        orgId: true,
-        createdAt: true,
-        updatedAt: true,
-        // Gebruik directe relations ipv _count
+      include: {
+        organization: true,
         enrollments: {
-          select: {
-            id: true
+          include: {
+            course: true
           }
         },
-        quizAttempts: {
-          select: {
-            id: true
-          }
-        }
+        certificates: true
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     })
 
-    console.log(`✅ [API] Found ${users.length} users`)
-
-    // Transform for frontend - AANGEPAST VOOR WERKELIJKE SCHEMA
-    const transformedUsers = users.map((user) => ({
+    // Transform data voor frontend
+    const transformedUsers = users.map(user => ({
       id: user.id,
-      name: user.name || 'Naamloos',
+      name: user.name || '',
       email: user.email,
-      role: user.role || 'USER',
-      status: 'Actief', // Placeholder - bestaat niet in schema
-      lastLogin: 'Recent', // Placeholder - bestaat niet in schema
+      role: mapEnumToRole(user.role),
+      image: user.image || '',
+      organization: user.organization.name,
       enrollments: user.enrollments.length,
-      quizAttempts: user.quizAttempts.length,
-      completionRate: 0, // Placeholder
-      createdAt: user.createdAt.toISOString().split('T')[0],
-      updatedAt: user.updatedAt.toISOString().split('T')[0],
+      certificates: user.certificates.length,
+      lastLogin: user.updatedAt,
+      status: 'Actief',
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     }))
 
-    console.log(`✅ [API] ${transformedUsers.length} users transformed`)
-    
     return NextResponse.json(transformedUsers)
   } catch (error) {
-    console.error('❌ [API] Error fetching users:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch users' },
-      { status: 500 }
-    )
+    console.error('Error fetching users:', error)
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+  }
+}
+
+// POST - Nieuwe user aanmaken
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    console.log('📝 Creating user:', body)
+    
+    const orgId = body.orgId || 'cmgy9he28000487zak1dq4e0t'
+    
+    const user = await prisma.user.create({
+      data: {
+        name: body.name,
+        email: body.email,
+        role: mapRoleToEnum(body.role || 'Cursist'),
+        image: body.image,
+        orgId: orgId
+      }
+    })
+    
+    console.log('✅ User created:', user.id)
+    return NextResponse.json(user)
+  } catch (error) {
+    console.error('❌ Error creating user:', error)
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
   }
 }

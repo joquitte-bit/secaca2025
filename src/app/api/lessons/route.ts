@@ -1,192 +1,428 @@
-// src/app/api/lessons/route.ts
-import { NextResponse } from 'next/server'
-import { PrismaClient, LessonStatus, LessonType } from '@prisma/client'
+// src/app/api/lessons/route.ts - COMPLEET MET DELETE EN STATUS UPDATE
+import { NextRequest, NextResponse } from 'next/server'
+import { PrismaClient, LessonStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Map frontend status naar Prisma enum
-const mapStatusToEnum = (status: string): LessonStatus => {
-  const statusMap: { [key: string]: LessonStatus } = {
-    'Concept': LessonStatus.DRAFT,
-    'Actief': LessonStatus.PUBLISHED,
-    'Inactief': LessonStatus.ARCHIVED
+const safeNumber = (value: any, fallback: number = 0): number => {
+  if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+    return fallback
   }
-  return statusMap[status] || LessonStatus.DRAFT
+  return Number(value)
 }
 
-// Map Prisma enum naar frontend status
-const mapEnumToStatus = (status: LessonStatus): string => {
-  const statusMap: { [key: string]: string } = {
-    'DRAFT': 'Concept',
-    'PUBLISHED': 'Actief',
-    'ARCHIVED': 'Inactief'
+// Helper functie om frontend status naar Prisma enum te converteren
+const mapStatusToPrisma = (status: string): LessonStatus => {
+  switch (status) {
+    case 'Actief':
+      return LessonStatus.PUBLISHED
+    case 'Concept':
+      return LessonStatus.DRAFT
+    case 'Inactief':
+      return LessonStatus.ARCHIVED
+    default:
+      return LessonStatus.DRAFT
   }
-  return statusMap[status] || 'Concept'
 }
 
-// Map frontend type naar Prisma enum
-const mapTypeToEnum = (type: string): LessonType => {
-  const typeMap: { [key: string]: LessonType } = {
-    'Text': LessonType.TEXT,
-    'Video': LessonType.VIDEO,
-    'Quiz': LessonType.QUIZ,
-    'Download': LessonType.DOWNLOAD
+// Helper functie om Prisma enum naar frontend status te converteren
+const mapStatusFromPrisma = (status: LessonStatus): string => {
+  switch (status) {
+    case LessonStatus.PUBLISHED:
+      return 'Actief'
+    case LessonStatus.DRAFT:
+      return 'Concept'
+    case LessonStatus.ARCHIVED:
+      return 'Inactief'
+    default:
+      return 'Concept'
   }
-  return typeMap[type] || LessonType.TEXT
 }
 
-// Map Prisma enum naar frontend type
-const mapEnumToType = (type: LessonType): string => {
-  const typeMap: { [key: string]: string } = {
-    'TEXT': 'Text',
-    'VIDEO': 'Video',
-    'QUIZ': 'Quiz',
-    'DOWNLOAD': 'Download'
-  }
-  return typeMap[type] || 'Text'
-}
-
-// GET alle lessons
 export async function GET() {
   try {
+    console.log('📥 GET /api/lessons - Fetching all lessons')
+    
     const lessons = await prisma.lesson.findMany({
       include: {
-        modules: {
+        lessonModules: {
           include: {
             module: true
           }
-        },
-        quizQuestions: true
+        }
       },
-      orderBy: { order: 'asc' }
+      orderBy: {
+        createdAt: 'desc'
+      }
     })
 
-    // Transform data voor frontend
+    console.log(`📊 Found ${lessons.length} lessons`)
+
     const transformedLessons = lessons.map(lesson => ({
       id: lesson.id,
       title: lesson.title,
       description: lesson.description || '',
       content: lesson.content || '',
-      status: mapEnumToStatus(lesson.status),
-      category: lesson.category || '',
-      difficulty: lesson.difficulty || 'beginner',
-      type: mapEnumToType(lesson.type),
+      status: mapStatusFromPrisma(lesson.status),
+      level: 'Introductie',
       tags: lesson.tags ? JSON.parse(lesson.tags) : [],
-      videoUrl: lesson.videoUrl || '',
-      order: lesson.order,
-      duration: lesson.durationMinutes || 0,
-      modules: lesson.modules.length,
-      quizQuestions: lesson.quizQuestions.length,
+      slug: lesson.id,
+      order: safeNumber(lesson.order),
+      duration: safeNumber(lesson.durationMinutes),
+      difficulty: lesson.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: lesson.category || 'Uncategorized',
+      modules: lesson.lessonModules.length,
+      enrollments: 0,
+      certificates: 0,
       completionRate: 0,
-      createdAt: lesson.createdAt,
-      updatedAt: lesson.updatedAt,
-      moduleCount: lesson.modules.length,
+      type: lesson.type,
+      videoUrl: lesson.videoUrl || '',
+      createdAt: lesson.createdAt.toISOString(),
+      updatedAt: lesson.updatedAt.toISOString(),
+      moduleCount: lesson.lessonModules.length
     }))
 
+    console.log('✅ Lessons transformed successfully')
     return NextResponse.json(transformedLessons)
-  } catch (error) {
-    console.error('Error fetching lessons:', error)
-    return NextResponse.json({ error: 'Failed to fetch lessons' }, { status: 500 })
+
+  } catch (error: any) {
+    console.error('❌ Error fetching lessons:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch lessons: ' + error.message },
+      { status: 500 }
+    )
   }
 }
 
-// POST - Nieuwe lesson aanmaken
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    console.log('📝 POST /api/lessons - Creating new lesson')
+    
     const body = await request.json()
-    console.log('📝 Creating lesson:', body)
-    
-    const lesson = await prisma.lesson.create({
-      data: {
-        title: body.title,
-        description: body.description,
-        content: body.content,
-        status: mapStatusToEnum(body.status || 'Concept'),
-        category: body.category,
-        difficulty: body.difficulty,
-        type: mapTypeToEnum(body.type || 'Text'),
-        tags: body.tags ? JSON.stringify(body.tags) : '[]',
-        videoUrl: body.videoUrl,
-        order: body.order || 0,
-        durationMinutes: body.duration || 0,
-      }
-    })
-    
-    console.log('✅ Lesson created:', lesson.id)
-    return NextResponse.json(lesson)
-  } catch (error) {
-    console.error('❌ Error creating lesson:', error)
-    return NextResponse.json({ error: 'Failed to create lesson' }, { status: 500 })
-  }
-}
+    console.log('📦 Request body:', body)
 
-// PUT - Lesson bijwerken
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json()
-    console.log('📝 Updating lesson:', body)
-    
-    const updatedLesson = await prisma.lesson.update({
-      where: { id: body.id },
-      data: {
-        title: body.title,
-        description: body.description,
-        content: body.content,
-        status: mapStatusToEnum(body.status),
-        category: body.category,
-        difficulty: body.difficulty,
-        type: mapTypeToEnum(body.type),
-        tags: body.tags ? JSON.stringify(body.tags) : '[]',
-        videoUrl: body.videoUrl,
-        order: body.order,
-        durationMinutes: body.duration || 0,
-      }
-    })
-    
-    console.log('✅ Lesson updated:', updatedLesson.id)
-    return NextResponse.json(updatedLesson)
-  } catch (error) {
-    console.error('❌ Error updating lesson:', error)
-    return NextResponse.json({ error: 'Failed to update lesson' }, { status: 500 })
-  }
-}
+    const {
+      title,
+      description = '',
+      content = '',
+      status = 'Concept',
+      tags = [],
+      order = 0,
+      duration = 0,
+      difficulty = 'Beginner',
+      category = 'Uncategorized',
+      type = 'TEXT',
+      videoUrl = ''
+    } = body
 
-// PATCH - Lesson status bijwerken
-export async function PATCH(request: Request) {
-  try {
-    const body = await request.json()
-    
-    const updatedLesson = await prisma.lesson.update({
-      where: { id: body.id },
-      data: { 
-        status: mapStatusToEnum(body.status)
-      }
-    })
-    
-    return NextResponse.json(updatedLesson)
-  } catch (error) {
-    console.error('❌ Error patching lesson:', error)
-    return NextResponse.json({ error: 'Failed to update lesson status' }, { status: 500 })
-  }
-}
-
-// DELETE - Lesson verwijderen
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
-    if (!id) {
-      return NextResponse.json({ error: 'Lesson ID is required' }, { status: 400 })
+    if (!title) {
+      return NextResponse.json(
+        { error: 'Title is required' },
+        { status: 400 }
+      )
     }
 
+    const organization = await prisma.organization.findFirst()
+    if (!organization) {
+      const defaultOrg = await prisma.organization.create({
+        data: {
+          name: 'Default Organization',
+          slug: 'default-org'
+        }
+      })
+      console.log('✅ Created default organization:', defaultOrg.id)
+    }
+
+    const org = organization || await prisma.organization.findFirst()
+    if (!org) {
+      return NextResponse.json(
+        { error: 'No organization available' },
+        { status: 400 }
+      )
+    }
+
+    const lesson = await prisma.lesson.create({
+      data: {
+        title: title.trim(),
+        description: description.trim(),
+        content: content.trim(),
+        status: mapStatusToPrisma(status),
+        tags: JSON.stringify(tags),
+        order: safeNumber(order),
+        durationMinutes: safeNumber(duration),
+        difficulty,
+        category,
+        type: type as any,
+        videoUrl: videoUrl.trim(),
+        orgId: org.id
+      }
+    })
+
+    console.log('✅ Lesson created successfully:', lesson.id)
+
+    const transformedLesson = {
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description || '',
+      content: lesson.content || '',
+      status: mapStatusFromPrisma(lesson.status),
+      level: 'Introductie',
+      tags: lesson.tags ? JSON.parse(lesson.tags) : [],
+      slug: lesson.id,
+      order: safeNumber(lesson.order),
+      duration: safeNumber(lesson.durationMinutes),
+      difficulty: lesson.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: lesson.category || 'Uncategorized',
+      modules: 0,
+      enrollments: 0,
+      certificates: 0,
+      completionRate: 0,
+      type: lesson.type,
+      videoUrl: lesson.videoUrl || '',
+      createdAt: lesson.createdAt.toISOString(),
+      updatedAt: lesson.updatedAt.toISOString(),
+      moduleCount: 0
+    }
+
+    return NextResponse.json(transformedLesson, { status: 201 })
+
+  } catch (error: any) {
+    console.error('❌ Error creating lesson:', error)
+    return NextResponse.json(
+      { error: 'Failed to create lesson: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    console.log('✏️ PUT /api/lessons - Updating lesson')
+    
+    const body = await request.json()
+    console.log('📦 Request body:', body)
+
+    const {
+      id,
+      title,
+      description,
+      content,
+      status,
+      tags = [],
+      order,
+      duration,
+      difficulty,
+      category,
+      type,
+      videoUrl
+    } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Lesson ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!title) {
+      return NextResponse.json(
+        { error: 'Title is required' },
+        { status: 400 }
+      )
+    }
+
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id }
+    })
+
+    if (!existingLesson) {
+      return NextResponse.json(
+        { error: 'Lesson not found' },
+        { status: 404 }
+      )
+    }
+
+    const updatedLesson = await prisma.lesson.update({
+      where: { id },
+      data: {
+        title: title.trim(),
+        description: description !== undefined ? description.trim() : existingLesson.description,
+        content: content !== undefined ? content.trim() : existingLesson.content,
+        status: status ? mapStatusToPrisma(status) : existingLesson.status,
+        tags: JSON.stringify(tags),
+        order: order !== undefined ? safeNumber(order) : existingLesson.order,
+        durationMinutes: duration !== undefined ? safeNumber(duration) : existingLesson.durationMinutes,
+        difficulty: difficulty || existingLesson.difficulty,
+        category: category || existingLesson.category,
+        type: type || existingLesson.type,
+        videoUrl: videoUrl !== undefined ? videoUrl.trim() : existingLesson.videoUrl,
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('✅ Lesson updated successfully:', updatedLesson.id)
+
+    const transformedLesson = {
+      id: updatedLesson.id,
+      title: updatedLesson.title,
+      description: updatedLesson.description || '',
+      content: updatedLesson.content || '',
+      status: mapStatusFromPrisma(updatedLesson.status),
+      level: 'Introductie',
+      tags: updatedLesson.tags ? JSON.parse(updatedLesson.tags) : [],
+      slug: updatedLesson.id,
+      order: safeNumber(updatedLesson.order),
+      duration: safeNumber(updatedLesson.durationMinutes),
+      difficulty: updatedLesson.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: updatedLesson.category || 'Uncategorized',
+      modules: 0,
+      enrollments: 0,
+      certificates: 0,
+      completionRate: 0,
+      type: updatedLesson.type,
+      videoUrl: updatedLesson.videoUrl || '',
+      createdAt: updatedLesson.createdAt.toISOString(),
+      updatedAt: updatedLesson.updatedAt.toISOString(),
+      moduleCount: 0
+    }
+
+    return NextResponse.json(transformedLesson)
+
+  } catch (error: any) {
+    console.error('❌ Error updating lesson:', error)
+    return NextResponse.json(
+      { error: 'Failed to update lesson: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// NIEUW: DELETE method voor het verwijderen van lessons
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('🗑️ DELETE /api/lessons - Deleting lesson')
+    
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Lesson ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if lesson exists
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id }
+    })
+
+    if (!existingLesson) {
+      return NextResponse.json(
+        { error: 'Lesson not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete lesson
     await prisma.lesson.delete({
       where: { id }
     })
-    
-    return NextResponse.json({ success: true })
-  } catch (error) {
+
+    console.log('✅ Lesson deleted successfully:', id)
+
+    return NextResponse.json({ 
+      message: 'Lesson deleted successfully',
+      id: id
+    })
+
+  } catch (error: any) {
     console.error('❌ Error deleting lesson:', error)
-    return NextResponse.json({ error: 'Failed to delete lesson' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to delete lesson: ' + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// NIEUW: PATCH method voor status updates
+export async function PATCH(request: NextRequest) {
+  try {
+    console.log('⚡ PATCH /api/lessons - Updating lesson status')
+    
+    const body = await request.json()
+    console.log('📦 Request body:', body)
+
+    const { id, status } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Lesson ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Status is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if lesson exists
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id }
+    })
+
+    if (!existingLesson) {
+      return NextResponse.json(
+        { error: 'Lesson not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update only the status
+    const updatedLesson = await prisma.lesson.update({
+      where: { id },
+      data: {
+        status: mapStatusToPrisma(status),
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('✅ Lesson status updated successfully:', updatedLesson.id)
+
+    const transformedLesson = {
+      id: updatedLesson.id,
+      title: updatedLesson.title,
+      description: updatedLesson.description || '',
+      content: updatedLesson.content || '',
+      status: mapStatusFromPrisma(updatedLesson.status),
+      level: 'Introductie',
+      tags: updatedLesson.tags ? JSON.parse(updatedLesson.tags) : [],
+      slug: updatedLesson.id,
+      order: safeNumber(updatedLesson.order),
+      duration: safeNumber(updatedLesson.durationMinutes),
+      difficulty: updatedLesson.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      category: updatedLesson.category || 'Uncategorized',
+      modules: 0,
+      enrollments: 0,
+      certificates: 0,
+      completionRate: 0,
+      type: updatedLesson.type,
+      videoUrl: updatedLesson.videoUrl || '',
+      createdAt: updatedLesson.createdAt.toISOString(),
+      updatedAt: updatedLesson.updatedAt.toISOString(),
+      moduleCount: 0
+    }
+
+    return NextResponse.json(transformedLesson)
+
+  } catch (error: any) {
+    console.error('❌ Error updating lesson status:', error)
+    return NextResponse.json(
+      { error: 'Failed to update lesson status: ' + error.message },
+      { status: 500 }
+    )
   }
 }
