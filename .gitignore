@@ -46,3 +46,7 @@ Thumbs.db
 
 # Next.js
 .next/
+
+# Database files
+prisma/*.db
+prisma/*.db-journal

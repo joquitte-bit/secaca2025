@@ -1,117 +1,388 @@
 // src/app/dashboard/users/page.tsx
-import { getUser } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
 
-export default async function UsersPage() {
-  const user = await getUser()
-  
-  if (!user) {
-    redirect('/login')
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: 'Actief' | 'Inactief' | 'Uitgenodigd'
+  lastLogin: string
+  enrollments: number
+  quizAttempts: number
+  completionRate: number
+  createdAt: string
+  updatedAt: string
+}
+
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([])
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('Alle statussen')
+  const [roleFilter, setRoleFilter] = useState('Alle rollen')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // VERVANG MOCK DATA MET ECHTE API CALL
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      console.log('🔄 Fetching users from API...')
+      
+      const response = await fetch('/api/users')
+      
+      console.log('📡 API Response status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('📊 Users data received:', data)
+      console.log('🔍 Number of users:', data.length)
+      
+      setUsers(data)
+      
+    } catch (err) {
+      console.error('❌ Error fetching users:', err)
+      setError('Failed to load users: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const users = [
-    { 
-      id: 1, 
-      name: 'John Doe', 
-      email: 'john@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Actief', 
-      lastLogin: '2024-01-15',
-      joinDate: '2023-12-01'
-    },
-    { 
-      id: 2, 
-      name: 'Jane Smith', 
-      email: 'jane@bedrijf.nl', 
-      role: 'Beheerder', 
-      status: 'Actief', 
-      lastLogin: '2024-01-14',
-      joinDate: '2023-11-15'
-    },
-    { 
-      id: 3, 
-      name: 'Bob Johnson', 
-      email: 'bob@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Inactief', 
-      lastLogin: '2024-01-10',
-      joinDate: '2023-12-20'
-    },
-    { 
-      id: 4, 
-      name: 'Alice Brown', 
-      email: 'alice@bedrijf.nl', 
-      role: 'Gebruiker', 
-      status: 'Actief', 
-      lastLogin: '2024-01-15',
-      joinDate: '2024-01-05'
-    },
-  ]
+  // Filter users
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'Alle statussen' || user.status === statusFilter
+    const matchesRole = roleFilter === 'Alle rollen' || user.role === roleFilter
+    
+    return matchesSearch && matchesStatus && matchesRole
+  })
 
-  return (
-   <div className="min-h-[calc(100vh-4rem)] px-4 sm:px-6 lg:px-8 py-8 bg-gray-50">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Gebruikers</h1>
-        <p className="text-gray-600 mt-1">Beheer alle gebruikers en hun rechten</p>
-      </div>
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    )
+  }
 
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-gray-900">Gebruikers Lijst</h2>
-            <div className="text-sm text-gray-600">{users.length} gebruikers</div>
+  const toggleAllUsers = () => {
+    setSelectedUsers(
+      selectedUsers.length === filteredUsers.length
+        ? []
+        : filteredUsers.map(user => user.id)
+    )
+  }
+
+  // Helper functions
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Actief': return 'bg-green-100 text-green-800'
+      case 'Inactief': return 'bg-red-100 text-red-800'
+      case 'Uitgenodigd': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return 'bg-purple-100 text-purple-800'
+      case 'TEACHER': return 'bg-blue-100 text-blue-800'
+      case 'USER': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('nl-NL')
+  }
+
+  const formatRole = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return 'Beheerder'
+      case 'TEACHER': return 'Docent'
+      case 'USER': return 'Gebruiker'
+      default: return role
+    }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Gebruikers laden...</p>
           </div>
         </div>
-        
-        <div className="divide-y divide-gray-200">
-          {users.map((user) => (
-            <div key={user.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <Icons.user />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-gray-900">{user.name}</h3>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        user.role === 'Beheerder' 
-                          ? 'bg-purple-100 text-purple-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.role}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        user.status === 'Actief' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {user.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{user.email}</p>
-                    <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                      <span>Lid sinds: {user.joinDate}</span>
-                      <span>•</span>
-                      <span>Laatste login: {user.lastLogin}</span>
-                    </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+          <div className="flex items-center">
+            <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
+            <h3 className="text-lg font-medium text-red-800">Error</h3>
+          </div>
+          <p className="mt-2 text-red-700">{error}</p>
+          <button 
+            onClick={fetchUsers}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* HEADER */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Gebruikers</h1>
+              <p className="text-gray-600">Beheer alle gebruikers</p>
+            </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+              Nieuwe Gebruiker
+            </button>
+          </div>
+        </div>
+
+        {/* STATISTICS CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Icons.users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Totaal Gebruikers</p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Icons.clock className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Actieve Gebruikers</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.filter(u => u.status === 'Actief').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Icons.courses className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Gem. Inschrijvingen</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + user.enrollments, 0) / users.length) : 0}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Icons.document className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Totaal Quizzen</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {users.reduce((acc, user) => acc + user.quizAttempts, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SEARCH AND FILTERS */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Zoeken op naam of email..."
+                    className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div className="absolute left-3 top-2.5 text-gray-400">
+                    <Icons.search className="w-4 h-4" />
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <button className="text-gray-600 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                    <Icons.settings />
-                  </button>
-                  <button className="text-gray-600 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+                <select 
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option>Alle statussen</option>
+                  <option>Actief</option>
+                  <option>Inactief</option>
+                  <option>Uitgenodigd</option>
+                </select>
+                
+                <select 
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option>Alle rollen</option>
+                  <option>ADMIN</option>
+                  <option>TEACHER</option>
+                  <option>USER</option>
+                </select>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                {filteredUsers.length} van {users.length} gebruikers
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* TABLE */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                      onChange={toggleAllUsers}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gebruiker
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Inschrijvingen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quizzen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Laatste Login
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aangemaakt
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acties
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={() => toggleUserSelection(user.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        {formatRole(user.role)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Icons.courses className="w-4 h-4 text-gray-400 mr-1" />
+                        {user.enrollments}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <Icons.document className="w-4 h-4 text-gray-400 mr-1" />
+                        {user.quizAttempts}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.lastLogin}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(user.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button className="text-gray-600 hover:text-blue-600 transition-colors" title="Bekijken">
+                          <Icons.eye className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-green-600 transition-colors" title="Bewerken">
+                          <Icons.settings className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-orange-600 transition-colors" title="Status wijzigen">
+                          <Icons.power className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-red-600 transition-colors" title="Verwijderen">
+                          <Icons.trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="text-center text-sm text-gray-500 mt-4">
+          {selectedUsers.length > 0 && `${selectedUsers.length} gebruikers geselecteerd`}
         </div>
       </div>
     </div>

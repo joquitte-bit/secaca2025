@@ -1,49 +1,66 @@
+// src/app/api/courses/[id]/modules/route.ts - GEFIXT
 import { NextRequest, NextResponse } from 'next/server'
+import { PrismaClient } from '@prisma/client'
 
-const mockModules: any[] = []
+const prisma = new PrismaClient()
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await context.params
-    const courseId = params.id
+    const { id } = params
+    console.log(`📥 GET /api/courses/${id}/modules`)
 
-    console.log('Fetching modules for course:', courseId)
-    return NextResponse.json(mockModules)
-  } catch (error) {
-    console.error('Error fetching modules:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const courseModules = await prisma.courseOnModule.findMany({
+      where: { courseId: id },
+      include: { module: true }
+    })
+
+    return NextResponse.json(courseModules)
+  } catch (error: any) {
+    console.error('❌ Error fetching course modules:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch course modules' },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const params = await context.params
-    const courseId = params.id
-    const { title, description } = await request.json()
+    const { id } = params
+    const { moduleIds } = await request.json()
+    
+    console.log(`📝 POST /api/courses/${id}/modules:`, moduleIds)
 
-    if (!title?.trim()) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    // Delete existing module relationships
+    await prisma.courseOnModule.deleteMany({
+      where: { courseId: id }
+    })
+
+    // Create new module relationships
+    if (moduleIds && moduleIds.length > 0) {
+      const courseModules = moduleIds.map((moduleId: string, index: number) => ({
+        courseId: id,
+        moduleId: moduleId,
+        order: index
+      }))
+
+      await prisma.courseOnModule.createMany({
+        data: courseModules
+      })
     }
 
-    const newModule = {
-      id: `mod_${Date.now()}`,
-      title: title.trim(),
-      description: description?.trim() || '',
-      order: mockModules.length + 1,
-      lessons: [],
-      courseId
-    }
-
-    mockModules.push(newModule)
-    return NextResponse.json(newModule)
-  } catch (error) {
-    console.error('Error creating module:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ message: 'Modules linked to course successfully' })
+  } catch (error: any) {
+    console.error('❌ Error linking modules:', error)
+    return NextResponse.json(
+      { error: 'Failed to link modules to course' },
+      { status: 500 }
+    )
   }
 }

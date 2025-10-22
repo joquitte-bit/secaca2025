@@ -1,54 +1,120 @@
-// src/app/api/modules/[id]/lessons/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
+
+// GET /api/modules/[id]/lessons - Haal lessons voor module op
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const moduleId = context.params.id
-
-    const lessons = await prisma.lesson.findMany({
-      where: { moduleId },
+    const { id } = await params;
+    
+    const moduleLessons = await prisma.lessonOnModule.findMany({
+      where: { moduleId: id },
+      include: {
+        lesson: true
+      },
       orderBy: { order: 'asc' }
-    })
+    });
 
-    return NextResponse.json(lessons)
+    return NextResponse.json(moduleLessons);
   } catch (error) {
-    console.error('Error fetching lessons:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching module lessons:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
+// POST /api/modules/[id]/lessons - Voeg lesson toe aan module
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const moduleId = context.params.id
-    const { title, content, duration, isFree } = await request.json()
+    const { id } = await params;
+    const body = await request.json();
+    const { lessonId, order = 0 } = body;
 
-    // Bepaal volgende order nummer
-    const lastLesson = await prisma.lesson.findFirst({
-      where: { moduleId },
-      orderBy: { order: 'desc' }
-    })
+    if (!lessonId) {
+      return NextResponse.json({ error: 'Lesson ID is required' }, { status: 400 });
+    }
 
-    const lesson = await prisma.lesson.create({
+    // Check if module exists
+    const existingModule = await prisma.module.findUnique({
+      where: { id },
+    });
+
+    if (!existingModule) {
+      return NextResponse.json({ error: 'Module not found' }, { status: 404 });
+    }
+
+    // Check if lesson exists
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id: lessonId },
+    });
+
+    if (!existingLesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
+
+    // Create many-to-many relation
+    const moduleLesson = await prisma.lessonOnModule.create({
       data: {
-        title,
-        content: content || null,
-        duration: duration || null,
-        isFree: isFree || false,
-        order: (lastLesson?.order || 0) + 1,
-        moduleId,
+        moduleId: id,
+        lessonId: lessonId,
+        order: order
       },
-    })
+      include: {
+        lesson: true
+      }
+    });
 
-    return NextResponse.json(lesson)
+    return NextResponse.json(moduleLesson);
   } catch (error) {
-    console.error('Error creating lesson:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error adding lesson to module:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/modules/[id]/lessons - Verwijder lesson van module
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const lessonId = searchParams.get('lessonId');
+
+    if (!lessonId) {
+      return NextResponse.json({ error: 'Lesson ID is required' }, { status: 400 });
+    }
+
+    // Delete many-to-many relation
+    await prisma.lessonOnModule.delete({
+      where: {
+        moduleId_lessonId: {
+          moduleId: id,
+          lessonId: lessonId
+        }
+      }
+    });
+
+    return NextResponse.json({ 
+      message: 'Lesson removed from module successfully'
+    });
+  } catch (error) {
+    console.error('Error removing lesson from module:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

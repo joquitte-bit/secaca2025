@@ -5,15 +5,42 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icons } from './Icons'
 
-const sidebarSections = {
+const navSections = [
+  { id: 'dashboard', name: 'Dashboard', icon: Icons.dashboard },
+  { id: 'modules', name: 'Modules', icon: Icons.modules },
+  { id: 'lessons', name: 'Lessen', icon: Icons.lessons },
+  { id: 'users', name: 'Gebruikers', icon: Icons.users },
+  { id: 'analytics', name: 'Analytics', icon: Icons.analytics },
+  { id: 'settings', name: 'Instellingen', icon: Icons.settings },
+  { id: 'courses', name: 'Courses', icon: Icons.modules }, // Voeg courses toe
+] as const
+
+// Gebruik hetzelfde Section type als in DashboardNav
+type Section = typeof navSections[number]['id']
+
+const sidebarSections: Record<Section, {
+  title: string
+  icon: any
+  items: { name: string; href: string; icon: any }[]
+}> = {
   dashboard: {
     title: 'Dashboard',
     icon: Icons.dashboard,
     items: [
       { name: 'Overzicht', href: '/dashboard', icon: Icons.dashboard },
-      { name: 'Snelle Statistieken', href: '/dashboard/quick-stats', icon: Icons.chart },
+      { name: 'Snelle Statistieken', href: '/dashboard/quick-stats', icon: Icons.analytics },
       { name: 'Recente Activiteit', href: '/dashboard/activity', icon: Icons.check },
       { name: 'Voortgang', href: '/dashboard/progress', icon: Icons.analytics },
+    ]
+  },
+  courses: {
+    title: 'Courses',
+    icon: Icons.modules,
+    items: [
+      { name: 'Alle Courses', href: '/dashboard/courses', icon: Icons.modules },
+      { name: 'Nieuwe Course', href: '/dashboard/courses/new', icon: Icons.add },
+      { name: 'Categorieën', href: '/dashboard/courses/categories', icon: Icons.document },
+      { name: 'Volgorde', href: '/dashboard/courses/order', icon: Icons.settings },
     ]
   },
   modules: {
@@ -52,7 +79,7 @@ const sidebarSections = {
     items: [
       { name: 'Overzicht', href: '/dashboard/analytics', icon: Icons.analytics },
       { name: 'Rapporten', href: '/dashboard/analytics/reports', icon: Icons.document },
-      { name: 'Export', href: '/dashboard/analytics/export', icon: Icons.chart },
+      { name: 'Export', href: '/dashboard/analytics/export', icon: Icons.analytics },
     ]
   },
   settings: {
@@ -67,55 +94,26 @@ const sidebarSections = {
 }
 
 interface DashboardSidebarProps {
-  activeSection?: keyof typeof sidebarSections | null
-  isOpen?: boolean
-  onToggleSidebar?: () => void
-  onClose?: () => void
+  activeSection?: Section | null
 }
 
 export function DashboardSidebar({ 
-  activeSection, 
-  isOpen = true, 
-  onToggleSidebar,
-  onClose 
+  activeSection
 }: DashboardSidebarProps = {}) {
   const pathname = usePathname()
 
-  if (!isOpen) {
-    return null
-  }
-
-  const section = activeSection ? sidebarSections[activeSection] : sidebarSections.dashboard
+  // Voeg safe checking toe om undefined errors te voorkomen
+  const section = activeSection && sidebarSections[activeSection] 
+    ? sidebarSections[activeSection] 
+    : sidebarSections.dashboard
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:static lg:transform-none lg:h-[calc(100vh-4rem)] flex flex-col">
-      {/* Header met toggle button */}
+    <div className="fixed top-16 left-0 z-50 w-56 bg-white border-r border-gray-200 h-[calc(100vh-4rem)] flex flex-col">
+      {/* Header zonder toggle button */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-2 text-gray-900">
           <section.icon className="w-5 h-5" />
           <h3 className="font-semibold">{section.title}</h3>
-        </div>
-        
-        {/* Toggle button in sidebar - driehoek naar links wanneer sidebar open is */}
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Sidebar verbergen"
-          >
-            {/* Driehoek naar links wanneer sidebar open is */}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors lg:hidden"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       </div>
       
@@ -128,7 +126,6 @@ export function DashboardSidebar({
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => onClose?.()}
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600 transform translate-x-1'
@@ -143,7 +140,7 @@ export function DashboardSidebar({
         </div>
       </nav>
 
-      {/* Quick Actions Footer - Nu helemaal onderaan */}
+      {/* Quick Actions Footer */}
       <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
         <div className="space-y-2">
           <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-white rounded-lg transition-colors">
