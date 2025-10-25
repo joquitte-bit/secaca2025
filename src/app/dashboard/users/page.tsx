@@ -1,4 +1,4 @@
-// src/app/dashboard/users/page.tsx
+// src/app/dashboard/users/page.tsx - MINIMALIST STYLE
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -87,22 +87,22 @@ export default function UsersPage() {
     )
   }
 
-  // Helper functions
+  // Helper functions - MINIMALIST VERSION
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Actief': return 'bg-green-100 text-green-800'
-      case 'Inactief': return 'bg-red-100 text-red-800'
-      case 'Uitgenodigd': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Actief': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Inactief': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Uitgenodigd': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      default: return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'ADMIN': return 'bg-purple-100 text-purple-800'
-      case 'TEACHER': return 'bg-blue-100 text-blue-800'
-      case 'USER': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'ADMIN': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'TEACHER': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'USER': return 'bg-gray-100 text-gray-700 border border-gray-300'
+      default: return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
@@ -164,18 +164,19 @@ export default function UsersPage() {
               <h1 className="text-2xl font-bold text-gray-900">Gebruikers</h1>
               <p className="text-gray-600">Beheer alle gebruikers</p>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center">
+              <Icons.add className="w-5 h-5 mr-2" />
               Nieuwe Gebruiker
             </button>
           </div>
         </div>
 
-        {/* STATISTICS CARDS */}
+        {/* STATISTICS CARDS - MINIMALIST STYLE */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Icons.users className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.users className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Totaal Gebruikers</p>
@@ -184,10 +185,10 @@ export default function UsersPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Icons.clock className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.check className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Actieve Gebruikers</p>
@@ -198,10 +199,10 @@ export default function UsersPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Icons.courses className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.courses className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Gem. Inschrijvingen</p>
@@ -212,10 +213,10 @@ export default function UsersPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Icons.document className="w-6 h-6 text-orange-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.document className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Totaal Quizzen</p>
@@ -226,6 +227,46 @@ export default function UsersPage() {
             </div>
           </div>
         </div>
+
+        {/* BULK ACTIONS BAR - MINIMALIST STYLE */}
+        {selectedUsers.length > 0 && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Icons.document className="w-5 h-5 text-gray-700 mr-2" />
+                <span className="text-gray-800 font-medium">
+                  {selectedUsers.length} gebruiker(s) geselecteerd
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {/* handle bulk activate */}}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                >
+                  Activeren
+                </button>
+                <button
+                  onClick={() => {/* handle bulk deactivate */}}
+                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
+                >
+                  Deactiveren
+                </button>
+                <button
+                  onClick={() => {/* handle bulk delete */}}
+                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                >
+                  Verwijderen
+                </button>
+                <button
+                  onClick={() => setSelectedUsers([])}
+                  className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400 transition-colors"
+                >
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* SEARCH AND FILTERS */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
@@ -360,16 +401,16 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button className="text-gray-600 hover:text-blue-600 transition-colors" title="Bekijken">
+                        <button className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100" title="Bekijken">
                           <Icons.eye className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-green-600 transition-colors" title="Bewerken">
-                          <Icons.settings className="w-4 h-4" />
+                        <button className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100" title="Bewerken">
+                          <Icons.edit className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-orange-600 transition-colors" title="Status wijzigen">
-                          <Icons.power className="w-4 h-4" />
+                        <button className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100" title="Status wijzigen">
+                          <Icons.bolt className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-red-600 transition-colors" title="Verwijderen">
+                        <button className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100" title="Verwijderen">
                           <Icons.trash className="w-4 h-4" />
                         </button>
                       </div>

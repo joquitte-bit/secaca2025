@@ -3,8 +3,6 @@
 
 import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
-import { ActionButtons } from '@/components/ActionButtons'
-import ViewLessonModal from '@/components/ViewLessonModal'  // ✅ CORRECT: default import
 import LessonEditor from '@/components/LessonEditor'
 
 interface Lesson {
@@ -12,325 +10,111 @@ interface Lesson {
   title: string
   description: string
   content: string
-  status: 'Concept' | 'Actief' | 'Inactief'
-  level: string
-  tags: string[]
-  slug: string
-  order: number
-  duration: number
+  type: 'VIDEO' | 'QUIZ' | 'TEXT' | 'DOWNLOAD'
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
+  duration: number
   category: string
-  modules: number
-  enrollments: number
-  certificates: number
-  completionRate: number
-  type: 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD'
-  videoUrl: string
+  tags: string[]
+  status: 'PUBLISHED' | 'ARCHIVED' | 'CONCEPT'  // Gebruik CONCEPT i.p.v. DRAFT
+  order: number
+  resources: string[]
+  objectives: string[]
+  prerequisites: string[]
   createdAt: string
   updatedAt: string
-  moduleCount: number
-  // Optionele properties voor backward compatibility
-  isFree?: boolean
-  quizQuestions?: number
-}
-
-interface Module {
-  id: string
-  title: string
-  description?: string
-  status?: string
-  duration?: number
-  category?: string
-  lessons?: number
+  moduleId?: string
+  courseId?: string
 }
 
 export default function LessonsPage() {
   const [lessons, setLessons] = useState<Lesson[]>([])
-  const [modules, setModules] = useState<Module[]>([])
-  const [selectedLessons, setSelectedLessons] = useState<string[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('Alle statussen')
-  const [categoryFilter, setCategoryFilter] = useState('Alle categorieën')
-  const [difficultyFilter, setDifficultyFilter] = useState('Alle niveaus')
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [selectedLessons, setSelectedLessons] = useState<string[]>([])
+  const [showEditor, setShowEditor] = useState(false)
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
   
-  // MODAL STATES
-  const [viewModalOpen, setViewModalOpen] = useState(false)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [difficultyFilter, setDifficultyFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
 
-  // VERVANG MOCK DATA MET ECHTE API CALL
+  // Available categories
+  const categories = [
+    'Security Basics',
+    'Advanced Security', 
+    'Network Security',
+    'Web Security',
+    'Cloud Security',
+    'Mobile Security',
+    'Cryptography',
+    'Social Engineering',
+    'Incident Response',
+    'Compliance'
+  ]
+
+  // Fetch lessons from API
+const fetchLessons = async () => {
+  try {
+    console.log('🔄 Fetching lessons from API...')
+    setIsLoading(true)
+    
+    const response = await fetch('/api/lessons')
+    console.log('📡 API Response status:', response.status)
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch lessons')
+    }
+    
+    const lessonsData = await response.json()
+    console.log('📊 Lessons data received:', lessonsData)
+    
+    // Transform alle velden van backend naar frontend
+    const transformedLessons = lessonsData.map((lesson: any) => ({
+      ...lesson,
+      status: lesson.status === 'PUBLISHED' ? 'PUBLISHED' : 
+              lesson.status === 'ARCHIVED' ? 'ARCHIVED' : 'CONCEPT',
+      duration: lesson.durationMinutes || lesson.duration || 0, // Map durationMinutes naar duration
+      difficulty: lesson.difficulty || 'Beginner',
+      type: lesson.type || 'TEXT',
+      category: lesson.category || '',
+      tags: Array.isArray(lesson.tags) ? lesson.tags : []
+    }))
+    
+    console.log('🔄 Transformed lessons:', transformedLessons)
+    setLessons(transformedLessons)
+  } catch (error) {
+    console.error('❌ Error fetching lessons:', error)
+    alert('Fout bij ophalen lessons')
+  } finally {
+    setIsLoading(false)
+  }
+}
+
   useEffect(() => {
     fetchLessons()
-    fetchModules()
   }, [])
 
-  const fetchLessons = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      console.log('🔄 Fetching lessons from API...')
-      
-      const response = await fetch('/api/lessons')
-      
-      console.log('📡 API Response status:', response.status)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch lessons: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      console.log('📊 Lessons data received:', data)
-      console.log('🔍 Number of lessons:', data.length)
-      
-      setLessons(data)
-      
-    } catch (err) {
-      console.error('❌ Error fetching lessons:', err)
-      setError('Failed to load lessons: ' + (err instanceof Error ? err.message : 'Unknown error'))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const fetchModules = async () => {
-    try {
-      const response = await fetch('/api/modules')
-      if (response.ok) {
-        const modulesData = await response.json()
-        setModules(modulesData)
-      }
-    } catch (err) {
-      console.error('Error fetching modules:', err)
-    }
-  }
-
-  // ACTION HANDLERS
-  const handleEditLesson = (lesson: Lesson) => {
-    console.log('Edit lesson:', lesson)
-    setSelectedLesson(lesson)
-    setEditModalOpen(true)
-  }
-
-  const handleDeleteLesson = async (lesson: Lesson) => {
-    if (confirm(`Weet je zeker dat je "${lesson.title}" wilt verwijderen?`)) {
-      try {
-        console.log('Deleting lesson:', lesson.id)
-        
-        const response = await fetch(`/api/lessons?id=${lesson.id}`, {
-          method: 'DELETE',
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to delete lesson')
-        }
-
-        // Update local state
-        setLessons(prev => prev.filter(l => l.id !== lesson.id))
-        console.log('✅ Lesson deleted successfully')
-        
-      } catch (err) {
-        console.error('❌ Error deleting lesson:', err)
-        alert('Error deleting lesson: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      }
-    }
-  }
-
-  const handleViewLesson = (lesson: Lesson) => {
-    console.log('View lesson:', lesson)
-    setSelectedLesson(lesson)
-    setViewModalOpen(true)
-  }
-
-  const handleStatusToggle = async (lesson: Lesson) => {
-    try {
-      const newStatus = lesson.status === 'Actief' ? 'Inactief' : 'Actief'
-      console.log(`Toggling lesson status from ${lesson.status} to ${newStatus}`)
-
-      const response = await fetch(`/api/lessons`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: lesson.id,
-          status: newStatus
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update lesson status')
-      }
-
-      // Update local state
-      setLessons(prev => prev.map(l => 
-        l.id === lesson.id ? { ...l, status: newStatus } : l
-      ))
-      
-      console.log('✅ Lesson status updated successfully')
-      
-    } catch (err) {
-      console.error('❌ Error updating lesson status:', err)
-      alert('Error updating lesson status: ' + (err instanceof Error ? err.message : 'Unknown error'))
-    }
-  }
-
-  const handleLessonUpdate = async (updatedLessonData: any) => {
-    try {
-      console.log('Updating lesson:', updatedLessonData)
-      
-      const response = await fetch(`/api/lessons`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedLessonData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update lesson')
-      }
-
-      const updatedLesson = await response.json()
-
-      // Update local state
-      setLessons(prev => prev.map(lesson => 
-        lesson.id === updatedLesson.id ? updatedLesson : lesson
-      ))
-
-      setEditModalOpen(false)
-      setSelectedLesson(null)
-      
-      console.log('✅ Lesson updated successfully')
-      
-    } catch (err) {
-      console.error('❌ Error updating lesson:', err)
-      alert('Error updating lesson: ' + (err instanceof Error ? err.message : 'Unknown error'))
-    }
-  }
-
-  const handleCreateLesson = async (lessonData: any) => {
-    try {
-      console.log('Creating new lesson:', lessonData)
-      
-      const response = await fetch('/api/lessons', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(lessonData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create lesson')
-      }
-
-      const newLesson = await response.json()
-
-      // Update local state
-      setLessons(prev => [...prev, newLesson])
-
-      setEditModalOpen(false)
-      setSelectedLesson(null)
-      
-      console.log('✅ Lesson created successfully')
-      
-    } catch (err) {
-      console.error('❌ Error creating lesson:', err)
-      alert('Error creating lesson: ' + (err instanceof Error ? err.message : 'Unknown error'))
-    }
-  }
-
-  const handleNewLesson = () => {
-    setSelectedLesson(null)
-    setEditModalOpen(true)
-  }
-
-  // BULK ACTIONS
-  const handleBulkDelete = async () => {
-    if (selectedLessons.length === 0) return
-    
-    if (confirm(`Weet je zeker dat je ${selectedLessons.length} lesson(s) wilt verwijderen?`)) {
-      try {
-        console.log('Bulk deleting lessons:', selectedLessons)
-        
-        // TODO: Implement bulk delete API call
-        // For now, delete individually
-        for (const lessonId of selectedLessons) {
-          const response = await fetch(`/api/lessons?id=${lessonId}`, {
-            method: 'DELETE',
-          })
-          
-          if (!response.ok) {
-            throw new Error(`Failed to delete lesson ${lessonId}`)
-          }
-        }
-
-        // Update local state
-        setLessons(prev => prev.filter(lesson => !selectedLessons.includes(lesson.id)))
-        setSelectedLessons([])
-        
-        console.log('✅ Bulk delete completed')
-        
-      } catch (err) {
-        console.error('❌ Error in bulk delete:', err)
-        alert('Error deleting lessons: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      }
-    }
-  }
-
-  const handleBulkStatusToggle = async (newStatus: 'Actief' | 'Inactief') => {
-    if (selectedLessons.length === 0) return
-    
-    try {
-      console.log(`Bulk updating ${selectedLessons.length} lessons to ${newStatus}`)
-      
-      // TODO: Implement bulk update API call
-      // For now, update individually
-      for (const lessonId of selectedLessons) {
-        const response = await fetch(`/api/lessons`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: lessonId,
-            status: newStatus
-          }),
-        })
-        
-        if (!response.ok) {
-          throw new Error(`Failed to update lesson ${lessonId}`)
-        }
-      }
-
-      // Update local state
-      setLessons(prev => prev.map(lesson => 
-        selectedLessons.includes(lesson.id) ? { ...lesson, status: newStatus } : lesson
-      ))
-      
-      console.log('✅ Bulk status update completed')
-      
-    } catch (err) {
-      console.error('❌ Error in bulk status update:', err)
-      alert('Error updating lessons: ' + (err instanceof Error ? err.message : 'Unknown error'))
-    }
-  }
-
-  // Filter lessons
+  // Filter lessons based on search and filters
   const filteredLessons = lessons.filter(lesson => {
-    const matchesSearch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lesson.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'Alle statussen' || lesson.status === statusFilter
-    const matchesCategory = categoryFilter === 'Alle categorieën' || lesson.category === categoryFilter
-    const matchesDifficulty = difficultyFilter === 'Alle niveaus' || lesson.difficulty === difficultyFilter
+    const matchesSearch = searchTerm === '' || 
+      lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lesson.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lesson.tags.some((tag: string) => 
+        tag.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     
-    return matchesSearch && matchesStatus && matchesCategory && matchesDifficulty
+    const matchesStatus = statusFilter === '' || lesson.status === statusFilter
+    const matchesCategory = categoryFilter === '' || lesson.category === categoryFilter
+    const matchesDifficulty = difficultyFilter === '' || lesson.difficulty === difficultyFilter
+    const matchesType = typeFilter === '' || lesson.type === typeFilter
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesDifficulty && matchesType
   })
 
-  const toggleLessonSelection = (lessonId: string) => {
+  // Handle lesson selection
+  const handleLessonSelect = (lessonId: string) => {
     setSelectedLessons(prev =>
       prev.includes(lessonId)
         ? prev.filter(id => id !== lessonId)
@@ -338,7 +122,8 @@ export default function LessonsPage() {
     )
   }
 
-  const toggleAllLessons = () => {
+  // Handle select all
+  const handleSelectAll = () => {
     setSelectedLessons(
       selectedLessons.length === filteredLessons.length
         ? []
@@ -346,66 +131,240 @@ export default function LessonsPage() {
     )
   }
 
-  // Helper functions
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Actief': return 'bg-green-100 text-green-800'
-      case 'Inactief': return 'bg-red-100 text-red-800'
-      case 'Concept': return 'bg-yellow-100 text-yellow-800'
-      default: return 'bg-gray-100 text-gray-800'
+  // Handle new lesson
+  const handleNewLesson = () => {
+    setEditingLesson(null)
+    setShowEditor(true)
+  }
+
+  // Handle edit lesson
+  const handleEditLesson = (lesson: Lesson) => {
+    console.log('Edit lesson:', lesson)
+    setEditingLesson(lesson)
+    setShowEditor(true)
+  }
+
+  // Handle save lesson
+  const handleSaveLesson = (savedLesson: Lesson) => {
+    if (editingLesson) {
+      // Update existing lesson
+      setLessons(prev => prev.map(lesson =>
+        lesson.id === savedLesson.id ? savedLesson : lesson
+      ))
+    } else {
+      // Add new lesson
+      setLessons(prev => [savedLesson, ...prev])
+    }
+    setShowEditor(false)
+    setEditingLesson(null)
+  }
+
+  // Handle delete lesson
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (!confirm('Weet je zeker dat je deze les wilt verwijderen?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lesson')
+      }
+
+      // Update local state
+      setLessons(prev => prev.filter(lesson => lesson.id !== lessonId))
+      setSelectedLessons(prev => prev.filter(id => id !== lessonId))
+      
+      console.log(`✅ Lesson ${lessonId} deleted successfully`)
+    } catch (error: any) {
+      console.error('❌ Error deleting lesson:', error)
+      alert(`Fout bij verwijderen lesson: ${error.message}`)
     }
   }
 
+  // Handle status toggle (lightning icon) - GECORRIGEERDE VERSIE
+  const handleStatusToggle = async (lessonId: string, currentStatus: string) => {
+    try {
+      console.log(`🔄 Updating lesson ${lessonId} status from ${currentStatus}`)
+      
+      // Bepaal nieuwe status - toggle tussen PUBLISHED en ARCHIVED
+      const newStatus = currentStatus === 'PUBLISHED' ? 'ARCHIVED' : 'PUBLISHED'
+      
+      console.log(`🎯 New status will be: ${newStatus}`)
+
+      // Map naar backend formaat
+      const statusMapping = {
+        'PUBLISHED': 'Actief',
+        'ARCHIVED': 'Inactief',
+        'DRAFT': 'Concept'
+      }
+
+      const backendStatus = statusMapping[newStatus as keyof typeof statusMapping]
+      console.log(`📤 Sending to backend: ${backendStatus}`)
+
+      const response = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: backendStatus
+        }),
+      })
+
+      console.log('📡 Status update response:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Server error response:', errorText)
+        throw new Error(`Failed to update lesson ${lessonId}: ${response.status} ${response.statusText}`)
+      }
+
+      const updatedLesson = await response.json()
+      console.log('✅ Lesson status updated successfully:', updatedLesson)
+      
+      // Update local state DIRECT met de nieuwe status
+      setLessons(prev => prev.map(lesson => 
+        lesson.id === lessonId ? {
+          ...lesson,
+          status: newStatus // Gebruik de nieuwe status direct
+        } : lesson
+      ))
+      
+      console.log('✅ UI updated with new status:', newStatus)
+      
+    } catch (error: any) {
+      console.error('❌ Error updating lesson status:', error)
+      alert(`Fout bij bijwerken status lesson: ${error.message}`)
+    }
+  }
+
+  // Handle bulk status toggle - GECORRIGEERDE VERSIE
+  const handleBulkStatusToggle = async (newStatus: 'PUBLISHED' | 'ARCHIVED') => {
+    try {
+      console.log(`🔄 Bulk updating ${selectedLessons.length} lessons to ${newStatus}`)
+      
+      // Map naar backend formaat
+      const statusMapping = {
+        'PUBLISHED': 'Actief',
+        'ARCHIVED': 'Inactief',
+        'DRAFT': 'Concept'
+      }
+
+      for (const lessonId of selectedLessons) {
+        const response = await fetch(`/api/lessons/${lessonId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: statusMapping[newStatus]
+          }),
+        })
+
+        if (!response.ok) {
+          console.warn(`⚠️ Failed to update lesson ${lessonId}, continuing with others...`)
+          continue
+        }
+      }
+
+      // Refresh lessons
+      fetchLessons()
+      setSelectedLessons([])
+      
+      console.log(`✅ Bulk status update to ${newStatus} completed`)
+    } catch (error: any) {
+      console.error('❌ Error in bulk status toggle:', error)
+      alert(`Fout bij bijwerken status lessons: ${error.message}`)
+    }
+  }
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!confirm(`Weet je zeker dat je ${selectedLessons.length} lessons wilt verwijderen?`)) {
+      return
+    }
+
+    try {
+      for (const lessonId of selectedLessons) {
+        const response = await fetch(`/api/lessons/${lessonId}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete lesson ${lessonId}`)
+        }
+      }
+
+      // Refresh lessons
+      fetchLessons()
+      setSelectedLessons([])
+      
+      console.log(`✅ Bulk delete completed for ${selectedLessons.length} lessons`)
+    } catch (error: any) {
+      console.error('❌ Error in bulk delete:', error)
+      alert(`Fout bij verwijderen lessons: ${error.message}`)
+    }
+  }
+
+  // Handle view lesson (eye icon)
+  const handleViewLesson = (lesson: Lesson) => {
+    alert(`Bekijk lesson: ${lesson.title}\n\nBeschrijving: ${lesson.description}\n\nType: ${lesson.type}\n\nDuur: ${lesson.duration} minuten`)
+  }
+
+  // Get status color - MET KLEUREN VOOR DUIDELIJKHEID
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'PUBLISHED':
+      return 'bg-green-100 text-green-800 border border-green-200'
+    case 'CONCEPT':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+    case 'ARCHIVED':
+      return 'bg-gray-100 text-gray-600 border border-gray-300'
+    default:
+      return 'bg-gray-100 text-gray-700 border border-gray-300'
+  }
+}
+
+// Status display text
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'PUBLISHED':
+      return 'Actief'
+    case 'CONCEPT':
+      return 'Concept'
+    case 'ARCHIVED':
+      return 'Inactief'
+    default:
+      return status
+  }
+}
+
+  // Get difficulty color - MINIMALIST VERSION
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Beginner': return 'bg-green-100 text-green-800'
-      case 'Intermediate': return 'bg-blue-100 text-blue-800'
-      case 'Expert': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Beginner':
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Intermediate':
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Expert':
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
+      default:
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('nl-NL')
-  }
-
-  // Data voor LessonEditor
-  const categories = Array.from(new Set(lessons.map(l => l.category)))
-  const lessonTypes = ['Video', 'Artikel', 'Quiz', 'Interactief']
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 w-full p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Lessons laden...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 w-full p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
-          <div className="flex items-center">
-            <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
-            <h3 className="text-lg font-medium text-red-800">Error</h3>
-          </div>
-          <p className="mt-2 text-red-700">{error}</p>
-          <button 
-            onClick={fetchLessons}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-          >
-            Probeer opnieuw
-          </button>
-        </div>
-      </div>
-    )
+  // Get type icon
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'VIDEO': return <Icons.video className="w-4 h-4 text-blue-600" />
+      case 'QUIZ': return <Icons.quiz className="w-4 h-4 text-purple-600" />
+      case 'DOWNLOAD': return <Icons.download className="w-4 h-4 text-green-600" />
+      default: return <Icons.document className="w-4 h-4 text-gray-600" />
+    }
   }
 
   return (
@@ -416,23 +375,24 @@ export default function LessonsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Lessons</h1>
-              <p className="text-gray-600">Beheer alle lessen</p>
+              <p className="text-gray-600">Beheer alle lessons</p>
             </div>
             <button 
               onClick={handleNewLesson}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
             >
+              <Icons.add className="w-5 h-5 mr-2" />
               Nieuwe Lesson
             </button>
           </div>
         </div>
 
-        {/* STATISTICS CARDS - AANGEPAST */}
+        {/* STATISTICS CARDS - MINIMALIST STYLE */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Icons.lessons className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.lessons className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Totaal Lessons</p>
@@ -441,24 +401,38 @@ export default function LessonsPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Icons.clock className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.check className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Actieve Lessons</p>
+                <p className="text-sm font-medium text-gray-600">Gepubliceerd</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {lessons.filter(l => l.status === 'Actief').length}
+                  {lessons.filter(l => l.status === 'PUBLISHED').length}
                 </p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Icons.modules className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.video className="w-6 h-6 text-gray-700" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Video Lessons</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {lessons.filter(l => l.type === 'VIDEO').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center">
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.clock className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Gem. Duur</p>
@@ -468,44 +442,30 @@ export default function LessonsPage() {
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Icons.document className="w-6 h-6 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Totaal Quizzen</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {lessons.reduce((acc, lesson) => acc + (lesson.quizQuestions || 0), 0)}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* BULK ACTIONS BAR */}
+        {/* BULK ACTIONS BAR - MINIMALIST STYLE */}
         {selectedLessons.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Icons.document className="w-5 h-5 text-blue-600 mr-2" />
-                <span className="text-blue-800 font-medium">
+                <Icons.document className="w-5 h-5 text-gray-700 mr-2" />
+                <span className="text-gray-800 font-medium">
                   {selectedLessons.length} lesson(s) geselecteerd
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => handleBulkStatusToggle('Actief')}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                  onClick={() => handleBulkStatusToggle('PUBLISHED')}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
                 >
-                  Activeren
+                  Publiceren
                 </button>
                 <button
-                  onClick={() => handleBulkStatusToggle('Inactief')}
-                  className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition-colors"
+                  onClick={() => handleBulkStatusToggle('ARCHIVED')}
+                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
                 >
-                  Deactiveren
+                  Archiveren
                 </button>
                 <button
                   onClick={handleBulkDelete}
@@ -515,7 +475,7 @@ export default function LessonsPage() {
                 </button>
                 <button
                   onClick={() => setSelectedLessons([])}
-                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
+                  className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400 transition-colors"
                 >
                   Annuleren
                 </button>
@@ -524,16 +484,16 @@ export default function LessonsPage() {
           </div>
         )}
 
-        {/* SEARCH AND FILTERS */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                <div className="relative">
+        {/* SEARCH AND FILTERS - IMPROVED VERSION */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
                   <input
                     type="text"
                     placeholder="Zoeken op titel, beschrijving of tags..."
-                    className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -542,47 +502,61 @@ export default function LessonsPage() {
                   </div>
                 </div>
                 
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option>Alle statussen</option>
-                  <option>Actief</option>
-                  <option>Inactief</option>
-                  <option>Concept</option>
-                </select>
-                
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
-                  <option>Alle categorieën</option>
-                  {Array.from(new Set(lessons.map(l => l.category))).map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap gap-2">
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">Alle statussen</option>
+                    <option value="PUBLISHED">Actief</option>
+                    <option value="DRAFT">Concept</option>
+                    <option value="ARCHIVED">Inactief</option>
+                  </select>
+                  
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[160px]"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">Alle categorieën</option>
+                    {Array.from(new Set(lessons.map(l => l.category))).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
 
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={difficultyFilter}
-                  onChange={(e) => setDifficultyFilter(e.target.value)}
-                >
-                  <option>Alle niveaus</option>
-                  <option>Beginner</option>
-                  <option>Intermediate</option>
-                  <option>Expert</option>
-                </select>
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[150px]"
+                    value={difficultyFilter}
+                    onChange={(e) => setDifficultyFilter(e.target.value)}
+                  >
+                    <option value="">Alle niveaus</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    <option value="">Alle types</option>
+                    <option value="VIDEO">Video</option>
+                    <option value="QUIZ">Quiz</option>
+                    <option value="TEXT">Text</option>
+                    <option value="DOWNLOAD">Download</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
                 {filteredLessons.length} van {lessons.length} lessons
               </div>
             </div>
           </div>
 
-          {/* TABLE - AANGEPAST MET ACTIONBUTTONS */}
+          {/* TABLE */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -591,7 +565,7 @@ export default function LessonsPage() {
                     <input
                       type="checkbox"
                       checked={selectedLessons.length === filteredLessons.length && filteredLessons.length > 0}
-                      onChange={toggleAllLessons}
+                      onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
@@ -599,25 +573,22 @@ export default function LessonsPage() {
                     Lesson
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Niveau
+                    Categorie
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Moeilijkheid
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Duur
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Modules
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quiz
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Volgorde
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Laatst bijgewerkt
+                    Aangemaakt
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acties
@@ -631,7 +602,7 @@ export default function LessonsPage() {
                       <input
                         type="checkbox"
                         checked={selectedLessons.includes(lesson.id)}
-                        onChange={() => toggleLessonSelection(lesson.id)}
+                        onChange={() => handleLessonSelect(lesson.id)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                     </td>
@@ -642,9 +613,18 @@ export default function LessonsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        {getTypeIcon(lesson.type)}
+                        <span className="ml-2 capitalize">{lesson.type.toLowerCase()}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
-                        {lesson.status}
+                        {getStatusText(lesson.status)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {lesson.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(lesson.difficulty)}`}>
@@ -657,33 +637,47 @@ export default function LessonsPage() {
                         {lesson.duration} min
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Icons.modules className="w-4 h-4 text-gray-400 mr-1" />
-                        {lesson.modules}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Icons.document className="w-4 h-4 text-gray-400 mr-1" />
-                        {lesson.quizQuestions}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {lesson.order}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(lesson.updatedAt)}
+                      {new Date(lesson.createdAt).toLocaleDateString('nl-NL')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <ActionButtons
-                        entity={lesson}
-                        entityType="lesson"
-                        onEdit={handleEditLesson}
-                        onDelete={handleDeleteLesson}
-                        onView={handleViewLesson}
-                        onStatusToggle={handleStatusToggle}
-                      />
+                      <div className="flex items-center space-x-2">
+                        {/* Eye icon - View */}
+                        <button
+                          onClick={() => handleViewLesson(lesson)}
+                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          title="Bekijk lesson"
+                        >
+                          <Icons.eye className="w-4 h-4" />
+                        </button>
+
+                        {/* Edit icon */}
+                        <button
+                          onClick={() => handleEditLesson(lesson)}
+                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          title="Bewerk lesson"
+                        >
+                          <Icons.edit className="w-4 h-4" />
+                        </button>
+
+                        {/* Status toggle icon - GECORRIGEERDE VERSIE */}
+                        <button
+                          onClick={() => handleStatusToggle(lesson.id, lesson.status)}
+                          className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          title={lesson.status === 'PUBLISHED' ? 'Deactiveren' : 'Activeren'}
+                        >
+                          <Icons.bolt className="w-4 h-4" />
+                        </button>
+
+                        {/* Delete icon */}
+                        <button
+                          onClick={() => handleDeleteLesson(lesson.id)}
+                          className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          title="Verwijder lesson"
+                        >
+                          <Icons.trash className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -692,42 +686,17 @@ export default function LessonsPage() {
           </div>
         </div>
 
-        <div className="text-center text-sm text-gray-500 mt-4">
-          Sleep lessons om volgorde aan te passen
-        </div>
-
-        {/* MODALS */}
-        {selectedLesson && (
-          <ViewLessonModal
-            lesson={selectedLesson}
-            isOpen={viewModalOpen}
+        {/* Lesson Editor Modal */}
+        {showEditor && (
+          <LessonEditor
+            lesson={editingLesson}
+            categories={categories}
             onClose={() => {
-              setViewModalOpen(false)
-              setSelectedLesson(null)
+              setShowEditor(false)
+              setEditingLesson(null)
             }}
+            onSave={handleSaveLesson}
           />
-        )}
-        
-        {/* EDIT MODAL - Gebruik LessonEditor met CORRECTE prop naam */}
-        {editModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h2 className="text-xl font-bold mb-4">
-                  {selectedLesson ? 'Les Bewerken' : 'Nieuwe Les Aanmaken'}
-                </h2>
-                    <LessonEditor
-                      lesson={selectedLesson}  
-                      categories={categories}
-                      onClose={() => {
-                        setEditModalOpen(false)
-                        setSelectedLesson(null)
-                      }}
-                      onSave={selectedLesson ? handleLessonUpdate : handleCreateLesson}
-                    />
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>

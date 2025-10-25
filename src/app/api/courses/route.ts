@@ -1,6 +1,6 @@
-// src/app/api/courses/route.ts - COMPLEET MET DELETE EN PATCH
+// src/app/api/courses/route.ts - DEFINITIEVE VERSIE
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, CourseStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -10,6 +10,61 @@ const safeNumber = (value: any, fallback: number = 0): number => {
     return fallback
   }
   return Number(value)
+}
+
+// Mapping tussen frontend (Nederlands) en backend (Prisma enum)
+const statusMappingToBackend = {
+  'Concept': CourseStatus.DRAFT,
+  'Actief': CourseStatus.PUBLISHED,
+  'Inactief': CourseStatus.ARCHIVED
+} as const;
+
+const statusMappingToFrontend = {
+  [CourseStatus.DRAFT]: 'Concept',
+  [CourseStatus.PUBLISHED]: 'Actief',
+  [CourseStatus.ARCHIVED]: 'Inactief'
+} as const;
+
+type FrontendStatus = keyof typeof statusMappingToBackend;
+
+// Helper function to validate and map status from frontend to backend
+function mapStatusToBackend(status: any): CourseStatus {
+  // Als het al een geldige CourseStatus is, gebruik die
+  if (Object.values(CourseStatus).includes(status as CourseStatus)) {
+    return status as CourseStatus;
+  }
+  
+  // Map van Nederlands naar Prisma enum
+  const mappedStatus = statusMappingToBackend[status as FrontendStatus];
+  if (mappedStatus) {
+    return mappedStatus;
+  }
+  
+  // Fallback naar DRAFT
+  return CourseStatus.DRAFT;
+}
+
+// Helper function to map status from backend to frontend
+function mapStatusToFrontend(status: CourseStatus): FrontendStatus {
+  return statusMappingToFrontend[status] || 'Concept';
+}
+
+// Helper function to validate difficulty
+function validateDifficulty(difficulty: any): string {
+  const validDifficulties = ['Beginner', 'Intermediate', 'Expert']
+  if (validDifficulties.includes(difficulty)) {
+    return difficulty
+  }
+  return 'Beginner'
+}
+
+// Helper function to generate slug
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w ]+/g, '')
+    .replace(/ +/g, '-')
+    .substring(0, 100)
 }
 
 export async function GET() {
@@ -35,13 +90,13 @@ export async function GET() {
       id: course.id,
       title: course.title,
       description: course.description,
-      status: course.status as 'Concept' | 'Actief' | 'Inactief',
+      status: mapStatusToFrontend(course.status),
       level: course.level,
       tags: course.tags ? JSON.parse(course.tags) : [],
       slug: course.slug,
       order: safeNumber(course.order),
       duration: safeNumber(course.duration),
-      difficulty: course.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      difficulty: course.difficulty,
       category: course.category || 'Uncategorized',
       modules: course.courseModules.length,
       enrollments: safeNumber(course.enrollmentCount),
@@ -61,6 +116,8 @@ export async function GET() {
       { error: 'Failed to fetch courses: ' + error.message },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
@@ -112,44 +169,48 @@ export async function POST(request: NextRequest) {
     }
 
     // Get first organization for demo purposes
-    const organization = await prisma.organization.findFirst()
+    let organization = await prisma.organization.findFirst()
+    
     if (!organization) {
       // Create a default organization if none exists
-      const defaultOrg = await prisma.organization.create({
+      organization = await prisma.organization.create({
         data: {
           name: 'Default Organization',
           slug: 'default-org'
         }
       })
-      console.log('✅ Created default organization:', defaultOrg.id)
+      console.log('✅ Created default organization:', organization.id)
     }
 
-    const org = organization || await prisma.organization.findFirst()
-    if (!org) {
+    if (!organization) {
       return NextResponse.json(
         { error: 'No organization available' },
         { status: 400 }
       )
     }
 
+    // Validate status and difficulty
+    const validatedStatus = mapStatusToBackend(status)
+    const validatedDifficulty = validateDifficulty(difficulty)
+
     // Create course
     const course = await prisma.course.create({
       data: {
         title: title.trim(),
         description: description.trim(),
-        status,
+        status: validatedStatus,
         level,
         tags: JSON.stringify(tags),
         slug: courseSlug,
         order: safeNumber(order),
         duration: safeNumber(duration),
-        difficulty,
+        difficulty: validatedDifficulty,
         category,
         moduleCount: safeNumber(modules),
         enrollmentCount: safeNumber(enrollments),
         certificateCount: safeNumber(certificates),
         completionRate: safeNumber(completionRate),
-        orgId: org.id
+        orgId: organization.id
       }
     })
 
@@ -160,13 +221,13 @@ export async function POST(request: NextRequest) {
       id: course.id,
       title: course.title,
       description: course.description,
-      status: course.status as 'Concept' | 'Actief' | 'Inactief',
+      status: mapStatusToFrontend(course.status),
       level: course.level,
       tags: course.tags ? JSON.parse(course.tags) : [],
       slug: course.slug,
       order: safeNumber(course.order),
       duration: safeNumber(course.duration),
-      difficulty: course.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      difficulty: course.difficulty,
       category: course.category || 'Uncategorized',
       modules: safeNumber(course.moduleCount),
       enrollments: safeNumber(course.enrollmentCount),
@@ -185,6 +246,8 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create course: ' + error.message },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
@@ -241,6 +304,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if slug is being changed and if it's already taken
+    const courseSlug = slug || existingCourse.slug
+    
     if (slug && slug !== existingCourse.slug) {
       const courseWithSlug = await prisma.course.findUnique({
         where: { slug }
@@ -254,21 +319,23 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update course
-    const courseSlug = slug || existingCourse.slug
+    // Validate status and difficulty
+    const validatedStatus = status ? mapStatusToBackend(status) : existingCourse.status
+    const validatedDifficulty = difficulty ? validateDifficulty(difficulty) : existingCourse.difficulty
 
+    // Update course
     const updatedCourse = await prisma.course.update({
       where: { id },
       data: {
         title: title.trim(),
         description: description.trim(),
-        status: status || existingCourse.status,
+        status: validatedStatus,
         level: level || existingCourse.level,
         tags: JSON.stringify(tags),
         slug: courseSlug,
         order: order !== undefined ? safeNumber(order) : existingCourse.order,
         duration: duration !== undefined ? safeNumber(duration) : existingCourse.duration,
-        difficulty: difficulty || existingCourse.difficulty,
+        difficulty: validatedDifficulty,
         category: category || existingCourse.category,
         moduleCount: modules !== undefined ? safeNumber(modules) : existingCourse.moduleCount,
         enrollmentCount: enrollments !== undefined ? safeNumber(enrollments) : existingCourse.enrollmentCount,
@@ -285,13 +352,13 @@ export async function PUT(request: NextRequest) {
       id: updatedCourse.id,
       title: updatedCourse.title,
       description: updatedCourse.description,
-      status: updatedCourse.status as 'Concept' | 'Actief' | 'Inactief',
+      status: mapStatusToFrontend(updatedCourse.status),
       level: updatedCourse.level,
       tags: updatedCourse.tags ? JSON.parse(updatedCourse.tags) : [],
       slug: updatedCourse.slug,
       order: safeNumber(updatedCourse.order),
       duration: safeNumber(updatedCourse.duration),
-      difficulty: updatedCourse.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      difficulty: updatedCourse.difficulty,
       category: updatedCourse.category || 'Uncategorized',
       modules: safeNumber(updatedCourse.moduleCount),
       enrollments: safeNumber(updatedCourse.enrollmentCount),
@@ -310,10 +377,12 @@ export async function PUT(request: NextRequest) {
       { error: 'Failed to update course: ' + error.message },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
-// NIEUW: DELETE method voor het verwijderen van courses
+// DELETE method voor het verwijderen van courses
 export async function DELETE(request: NextRequest) {
   try {
     console.log('🗑️ DELETE /api/courses - Deleting course')
@@ -358,10 +427,12 @@ export async function DELETE(request: NextRequest) {
       { error: 'Failed to delete course: ' + error.message },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
-// NIEUW: PATCH method voor status updates
+// PATCH method voor status updates
 export async function PATCH(request: NextRequest) {
   try {
     console.log('⚡ PATCH /api/courses - Updating course status')
@@ -397,11 +468,14 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Validate and map status
+    const validatedStatus = mapStatusToBackend(status)
+
     // Update only the status
     const updatedCourse = await prisma.course.update({
       where: { id },
       data: {
-        status: status,
+        status: validatedStatus,
         updatedAt: new Date()
       }
     })
@@ -412,13 +486,13 @@ export async function PATCH(request: NextRequest) {
       id: updatedCourse.id,
       title: updatedCourse.title,
       description: updatedCourse.description,
-      status: updatedCourse.status as 'Concept' | 'Actief' | 'Inactief',
+      status: mapStatusToFrontend(updatedCourse.status),
       level: updatedCourse.level,
       tags: updatedCourse.tags ? JSON.parse(updatedCourse.tags) : [],
       slug: updatedCourse.slug,
       order: safeNumber(updatedCourse.order),
       duration: safeNumber(updatedCourse.duration),
-      difficulty: updatedCourse.difficulty as 'Beginner' | 'Intermediate' | 'Expert',
+      difficulty: updatedCourse.difficulty,
       category: updatedCourse.category || 'Uncategorized',
       modules: safeNumber(updatedCourse.moduleCount),
       enrollments: safeNumber(updatedCourse.enrollmentCount),
@@ -437,14 +511,7 @@ export async function PATCH(request: NextRequest) {
       { error: 'Failed to update course status: ' + error.message },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
-}
-
-// Helper function to generate slug
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-')
-    .substring(0, 100)
 }

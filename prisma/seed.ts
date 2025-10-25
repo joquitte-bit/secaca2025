@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, LessonType, UserRole, CourseStatus, LessonStatus } from '@prisma/client'
+import { PrismaClient, LessonType, UserRole, CourseStatus, LessonStatus, ModuleStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -7,7 +7,7 @@ async function main() {
   console.log('🌱 Starting seed...')
   
   try {
-    // Cleanup in de juiste volgorde (vanwege foreign keys)
+    // Cleanup
     console.log('🧹 Cleaning up existing data...')
     
     await prisma.auditLog.deleteMany()
@@ -47,27 +47,14 @@ async function main() {
     })
     console.log('✅ Admin user created')
 
-    // 3. Maak 4 STANDALONE lessons
+    // 3. Maak 4 lessons
     const lessons = await Promise.all([
       prisma.lesson.create({
         data: {
           title: 'Inleiding Security Awareness',
           description: 'Basis principes van security awareness',
           type: LessonType.TEXT,
-          content: JSON.stringify({
-            type: 'doc',
-            content: [
-              {
-                type: 'heading',
-                attrs: { level: 2 },
-                content: [{ type: 'text', text: 'Wat is Security Awareness?' }]
-              },
-              {
-                type: 'paragraph',
-                content: [{ type: 'text', text: 'Security awareness gaat over het bewustzijn van medewerkers over cybersecurity risicos.' }]
-              }
-            ]
-          }),
+          content: JSON.stringify({ content: 'Security awareness basis' }),
           order: 1,
           durationMinutes: 20,
           status: LessonStatus.PUBLISHED,
@@ -82,20 +69,7 @@ async function main() {
           title: 'Phishing Herkenning',
           description: 'Leer phishing emails herkennen en voorkomen',
           type: LessonType.TEXT,
-          content: JSON.stringify({
-            type: 'doc',
-            content: [
-              {
-                type: 'heading',
-                attrs: { level: 2 },
-                content: [{ type: 'text', text: 'Herkennen van Phishing' }]
-              },
-              {
-                type: 'paragraph', 
-                content: [{ type: 'text', text: 'Phishing emails hebben vaak bepaalde kenmerken...' }]
-              }
-            ]
-          }),
+          content: JSON.stringify({ content: 'Phishing herkenning' }),
           order: 2,
           durationMinutes: 25,
           status: LessonStatus.PUBLISHED,
@@ -110,20 +84,7 @@ async function main() {
           title: 'Wachtwoord Beveiliging',
           description: 'Best practices voor sterke wachtwoorden',
           type: LessonType.TEXT,
-          content: JSON.stringify({
-            type: 'doc',
-            content: [
-              {
-                type: 'heading',
-                attrs: { level: 2 },
-                content: [{ type: 'text', text: 'Sterke Wachtwoorden' }]
-              },
-              {
-                type: 'paragraph',
-                content: [{ type: 'text', text: 'Een sterk wachtwoord bevat minimaal 12 karakters...' }]
-              }
-            ]
-          }),
+          content: JSON.stringify({ content: 'Wachtwoord beveiliging' }),
           order: 3,
           durationMinutes: 15,
           status: LessonStatus.PUBLISHED,
@@ -138,20 +99,7 @@ async function main() {
           title: 'Social Engineering',
           description: 'Herkennen en voorkomen van manipulatie technieken',
           type: LessonType.TEXT,
-          content: JSON.stringify({
-            type: 'doc',
-            content: [
-              {
-                type: 'heading',
-                attrs: { level: 2 },
-                content: [{ type: 'text', text: 'Wat is Social Engineering?' }]
-              },
-              {
-                type: 'paragraph',
-                content: [{ type: 'text', text: 'Social engineering is de psychologische manipulatie...' }]
-              }
-            ]
-          }),
+          content: JSON.stringify({ content: 'Social engineering' }),
           order: 4,
           durationMinutes: 30,
           status: LessonStatus.PUBLISHED,
@@ -164,14 +112,14 @@ async function main() {
     ])
     console.log('✅ 4 lessons created')
 
-    // 4. Maak 2 STANDALONE modules
+    // 4. Maak 2 modules
     const modules = await Promise.all([
       prisma.module.create({
         data: {
           title: 'Security Basics Training',
           description: 'Complete basis security awareness training',
           category: 'Security Basics',
-          status: 'Actief',
+          status: ModuleStatus.ACTIEF,
           duration: 60,
           difficulty: 'Beginner',
           tags: JSON.stringify(['security', 'basics', 'awareness']),
@@ -183,7 +131,7 @@ async function main() {
           title: 'Geavanceerde Bedreigingen',
           description: 'Training voor geavanceerde security bedreigingen',
           category: 'Advanced Security', 
-          status: 'Actief',
+          status: ModuleStatus.ACTIEF,
           duration: 45,
           difficulty: 'Intermediate',
           tags: JSON.stringify(['advanced', 'threats', 'security']),
@@ -193,14 +141,12 @@ async function main() {
     ])
     console.log('✅ 2 modules created')
 
-    // 5. Koppel lessons aan modules (many-to-many)
+    // 5. Koppel lessons aan modules
     await prisma.lessonOnModule.createMany({
       data: [
-        // Module 1 krijgt lesson 1, 2, 3
         { moduleId: modules[0].id, lessonId: lessons[0].id, order: 0 },
         { moduleId: modules[0].id, lessonId: lessons[1].id, order: 1 },
         { moduleId: modules[0].id, lessonId: lessons[2].id, order: 2 },
-        // Module 2 krijgt lesson 4
         { moduleId: modules[1].id, lessonId: lessons[3].id, order: 0 }
       ]
     })
@@ -214,9 +160,8 @@ async function main() {
         description: 'Volledige security awareness training voor alle medewerkers',
         status: CourseStatus.PUBLISHED,
         orgId: org.id,
-        modules: {
+        courseModules: {
           create: [
-            // Course krijgt beide modules
             { moduleId: modules[0].id, order: 0 },
             { moduleId: modules[1].id, order: 1 }
           ]

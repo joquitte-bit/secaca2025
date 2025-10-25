@@ -4,5 +4,5 @@
 @tailwind utilities;
 
 body {
-  background: red !important; /* Als dit niet rood wordt, is CSS gebroken */
+  background: rgb(41, 68, 244) !important; /* Als dit niet rood wordt, is CSS gebroken */
 }

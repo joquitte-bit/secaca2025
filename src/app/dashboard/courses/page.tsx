@@ -1,4 +1,4 @@
-// src/app/dashboard/courses/page.tsx - GEFIXT MET KLEUREN ZOALS LESSONS
+// src/app/dashboard/courses/page.tsx - MINIMALIST STYLE
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -32,8 +32,13 @@ export default function CoursesPage() {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [showEditor, setShowEditor] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
+  
+  // Search and filter states
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Concept' | 'Actief' | 'Inactief'>('all')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [difficultyFilter, setDifficultyFilter] = useState('')
+  const [levelFilter, setLevelFilter] = useState('')
 
   // Available categories
   const categories = [
@@ -77,12 +82,21 @@ export default function CoursesPage() {
     fetchCourses()
   }, [])
 
-  // Filter courses based on search and status
+  // Filter courses based on search and filters
   const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || course.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesSearch = searchTerm === '' || 
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.tags.some((tag: string) => 
+        tag.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    
+    const matchesStatus = statusFilter === '' || course.status === statusFilter
+    const matchesCategory = categoryFilter === '' || course.category === categoryFilter
+    const matchesDifficulty = difficultyFilter === '' || course.difficulty === difficultyFilter
+    const matchesLevel = levelFilter === '' || course.level === levelFilter
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesDifficulty && matchesLevel
   })
 
   // Handle course selection
@@ -253,31 +267,31 @@ export default function CoursesPage() {
     alert(`Bekijk course: ${course.title}\n\nBeschrijving: ${course.description}\n\nModules: ${course.modules}\n\nDuur: ${course.duration} minuten`)
   }
 
-  // Get status color
+  // Get status color - MINIMALIST VERSION
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Actief':
-        return 'bg-green-100 text-green-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       case 'Concept':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       case 'Inactief':
-        return 'bg-red-100 text-red-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
-  // Get difficulty color
+  // Get difficulty color - MINIMALIST VERSION
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Beginner':
-        return 'bg-green-100 text-green-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       case 'Intermediate':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       case 'Expert':
-        return 'bg-purple-100 text-purple-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
@@ -293,19 +307,20 @@ export default function CoursesPage() {
             </div>
             <button 
               onClick={handleNewCourse}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
             >
+              <Icons.add className="w-5 h-5 mr-2" />
               Nieuwe Course
             </button>
           </div>
         </div>
 
-        {/* STATISTICS CARDS - AANGEPAST MET KLEUREN ZOALS LESSONS */}
+        {/* STATISTICS CARDS - MINIMALIST STYLE */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Icons.courses className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.courses className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Totaal Courses</p>
@@ -314,10 +329,10 @@ export default function CoursesPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Icons.check className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.check className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Actieve Courses</p>
@@ -328,10 +343,10 @@ export default function CoursesPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Icons.modules className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.modules className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Totaal Modules</p>
@@ -342,10 +357,10 @@ export default function CoursesPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Icons.clock className="w-6 h-6 text-orange-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Icons.clock className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Gem. Duur</p>
@@ -357,26 +372,26 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* BULK ACTIONS BAR */}
+        {/* BULK ACTIONS BAR - MINIMALIST STYLE */}
         {selectedCourses.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Icons.document className="w-5 h-5 text-blue-600 mr-2" />
-                <span className="text-blue-800 font-medium">
+                <Icons.document className="w-5 h-5 text-gray-700 mr-2" />
+                <span className="text-gray-800 font-medium">
                   {selectedCourses.length} course(s) geselecteerd
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handleBulkStatusToggle('Actief')}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
                 >
                   Activeren
                 </button>
                 <button
                   onClick={() => handleBulkStatusToggle('Inactief')}
-                  className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition-colors"
+                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
                 >
                   Deactiveren
                 </button>
@@ -388,7 +403,7 @@ export default function CoursesPage() {
                 </button>
                 <button
                   onClick={() => setSelectedCourses([])}
-                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
+                  className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400 transition-colors"
                 >
                   Annuleren
                 </button>
@@ -397,16 +412,16 @@ export default function CoursesPage() {
           </div>
         )}
 
-        {/* SEARCH AND FILTERS */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                <div className="relative">
+        {/* SEARCH AND FILTERS - IMPROVED VERSION */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
                   <input
                     type="text"
-                    placeholder="Zoek op titel of beschrijving..."
-                    className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Zoeken op titel, beschrijving of tags..."
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -415,19 +430,55 @@ export default function CoursesPage() {
                   </div>
                 </div>
                 
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                >
-                  <option value="all">Alle statussen</option>
-                  <option value="Concept">Concept</option>
-                  <option value="Actief">Actief</option>
-                  <option value="Inactief">Inactief</option>
-                </select>
+                <div className="flex flex-wrap gap-2">
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">Alle statussen</option>
+                    <option value="Actief">Actief</option>
+                    <option value="Concept">Concept</option>
+                    <option value="Inactief">Inactief</option>
+                  </select>
+                  
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[160px]"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">Alle categorieën</option>
+                    {Array.from(new Set(courses.map(c => c.category))).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[150px]"
+                    value={difficultyFilter}
+                    onChange={(e) => setDifficultyFilter(e.target.value)}
+                  >
+                    <option value="">Alle niveaus</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={levelFilter}
+                    onChange={(e) => setLevelFilter(e.target.value)}
+                  >
+                    <option value="">Alle levels</option>
+                    <option value="Introductie">Introductie</option>
+                    <option value="Vervolg">Vervolg</option>
+                    <option value="Gevorderd">Gevorderd</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
                 {filteredCourses.length} van {courses.length} courses
               </div>
             </div>
@@ -519,40 +570,40 @@ export default function CoursesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        {/* Eye icon - View (blauw) */}
+                        {/* Eye icon - View */}
                         <button
                           onClick={() => handleViewCourse(course)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
                           title="Bekijk course"
                         >
                           <Icons.eye className="w-4 h-4" />
                         </button>
 
-                        {/* Settings icon - Edit (grijs) */}
+                        {/* Edit icon */}
                         <button
                           onClick={() => handleEditCourse(course)}
-                          className="text-gray-600 hover:text-gray-800 transition-colors"
+                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
                           title="Bewerk course"
                         >
-                          <Icons.settings className="w-4 h-4" />
+                          <Icons.edit className="w-4 h-4" />
                         </button>
 
-                        {/* Bolt icon - Toggle status (geel/oranje) */}
+                        {/* Status toggle icon */}
                         <button
                           onClick={() => handleStatusToggle(
                             course.id, 
                             course.status === 'Actief' ? 'Inactief' : 'Actief'
                           )}
-                          className="text-yellow-600 hover:text-yellow-800 transition-colors"
+                          className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100"
                           title={course.status === 'Actief' ? 'Deactiveren' : 'Activeren'}
                         >
                           <Icons.bolt className="w-4 h-4" />
                         </button>
 
-                        {/* Trash icon - Delete (rood) */}
+                        {/* Delete icon */}
                         <button
                           onClick={() => handleDeleteCourse(course.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100"
                           title="Verwijder course"
                         >
                           <Icons.trash className="w-4 h-4" />

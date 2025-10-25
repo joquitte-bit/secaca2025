@@ -1,4 +1,4 @@
-// src/components/LessonEditor.tsx - COMPLEET GEFIXT
+// src/components/LessonEditor.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -9,201 +9,121 @@ interface Lesson {
   title: string
   description: string
   content: string
-  status: 'Concept' | 'Actief' | 'Inactief'
-  level: string
-  tags: string[]
-  slug: string
-  order: number
-  duration: number
+  type: 'VIDEO' | 'QUIZ' | 'TEXT' | 'DOWNLOAD'
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
+  duration: number
   category: string
-  modules: number
-  enrollments: number
-  certificates: number
-  completionRate: number
-  type: 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD'
-  videoUrl: string
+  tags: string[]
+  status: 'CONCEPT' | 'PUBLISHED' | 'ARCHIVED'
+  order: number
+  resources: string[]
+  objectives: string[]
+  prerequisites: string[]
   createdAt: string
   updatedAt: string
-  moduleCount: number
-  // Optionele properties voor backward compatibility
-  isFree?: boolean
-  quizQuestions?: number
+  moduleId?: string
+  courseId?: string
 }
 
 interface LessonEditorProps {
-  lesson: Lesson | null
+  lesson?: Lesson | null
   categories: string[]
   onClose: () => void
   onSave: (lesson: Lesson) => void
 }
 
-// Safe number functie
+const lessonTypes = [
+  { value: 'VIDEO', label: 'Video', icon: 'video' },
+  { value: 'QUIZ', label: 'Quiz', icon: 'quiz' },
+  { value: 'TEXT', label: 'Text', icon: 'document' },
+  { value: 'DOWNLOAD', label: 'Download', icon: 'download' }
+]
+
+const statusOptions = [
+  { value: 'CONCEPT', label: 'Concept' },
+  { value: 'PUBLISHED', label: 'Actief' },
+  { value: 'ARCHIVED', label: 'Inactief' }
+]
+
 const safeNumber = (value: any, fallback: number = 0): number => {
-  if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
+  if (value === null || value === undefined || isNaN(value)) {
     return fallback
   }
   return Number(value)
 }
 
-export default function LessonEditor({ lesson, categories, onClose, onSave }: LessonEditorProps) {
-  const [formData, setFormData] = useState({
+const LessonEditor = ({ lesson, categories = [], onClose, onSave }: LessonEditorProps) => {
+  const [formData, setFormData] = useState<Lesson>({
+    id: '',
     title: '',
     description: '',
     content: '',
-    status: 'Concept' as 'Concept' | 'Actief' | 'Inactief',
-    level: '',
-    tags: [] as string[],
-    slug: '',
-    order: 0,
+    type: 'TEXT',
+    difficulty: 'Beginner',
     duration: 0,
-    difficulty: 'Beginner' as 'Beginner' | 'Intermediate' | 'Expert',
     category: '',
-    modules: 0,
-    type: 'TEXT' as 'TEXT' | 'VIDEO' | 'QUIZ' | 'DOWNLOAD',
-    videoUrl: '',
+    tags: [],
+    status: 'CONCEPT',
+    order: 0,
+    resources: [],
+    objectives: [],
+    prerequisites: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    moduleId: '',
+    courseId: ''
   })
 
-  const [aiInput, setAiInput] = useState('')
-  const [showAiImport, setShowAiImport] = useState(false)
   const [tagInput, setTagInput] = useState('')
+  const [resourceInput, setResourceInput] = useState('')
+  const [objectiveInput, setObjectiveInput] = useState('')
+  const [prerequisiteInput, setPrerequisiteInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
-  // Default categories
-  const defaultCategories = [
-    'Security Basics',
-    'Advanced Security', 
-    'Network Security',
-    'Web Security',
-    'Cloud Security',
-    'Mobile Security',
-    'Cryptography',
-    'Social Engineering',
-    'Incident Response',
-    'Compliance'
-  ]
-
-  const availableCategories = categories && categories.length > 0 ? categories : defaultCategories
-
-  // Initialize form with lesson data when editing
   useEffect(() => {
-    if (lesson) {
-      setFormData({
-        title: lesson.title || '',
-        description: lesson.description || '',
-        content: lesson.content || '',
-        status: lesson.status || 'Concept',
-        level: lesson.level || '',
-        tags: lesson.tags || [],
-        slug: lesson.slug || '',
-        order: safeNumber(lesson.order),
-        duration: safeNumber(lesson.duration),
-        difficulty: lesson.difficulty || 'Beginner',
-        category: lesson.category || '',
-        modules: safeNumber(lesson.modules),
-        type: lesson.type || 'TEXT',
-        videoUrl: lesson.videoUrl || '',
-      })
-    } else {
-      // Reset form for new lesson
-      setFormData({
-        title: '',
-        description: '',
-        content: '',
-        status: 'Concept',
-        level: '',
-        tags: [],
-        slug: '',
-        order: 0,
-        duration: 0,
-        difficulty: 'Beginner',
-        category: availableCategories[0] || '',
-        modules: 0,
-        type: 'TEXT',
-        videoUrl: '',
-      })
-    }
-  }, [lesson, availableCategories])
+  if (lesson) {
+    setFormData({
+      ...lesson,
+      duration: lesson.duration || 0, // Zorg dat duration wordt geladen
+      difficulty: lesson.difficulty || 'Beginner',
+      type: lesson.type || 'TEXT',
+      category: lesson.category || '',
+      tags: Array.isArray(lesson.tags) ? lesson.tags : [],
+      resources: Array.isArray(lesson.resources) ? lesson.resources : [],
+      objectives: Array.isArray(lesson.objectives) ? lesson.objectives : [],
+      prerequisites: Array.isArray(lesson.prerequisites) ? lesson.prerequisites : []
+    })
+  } else {
+    // Reset form for new lesson
+    setFormData({
+      id: '',
+      title: '',
+      description: '',
+      content: '',
+      type: 'TEXT',
+      difficulty: 'Beginner',
+      duration: 0,
+      category: '',
+      tags: [],
+      status: 'CONCEPT',
+      order: 0,
+      resources: [],
+      objectives: [],
+      prerequisites: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      moduleId: '',
+      courseId: ''
+    })
+  }
+}, [lesson])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
-  }
-
-  const handleAIImport = () => {
-    if (!aiInput.trim()) return
-
-    try {
-      // Try to parse as JSON first
-      let parsedData
-      try {
-        parsedData = JSON.parse(aiInput)
-      } catch {
-        // If JSON fails, try to extract from text format
-        parsedData = parseTextFormat(aiInput)
-      }
-
-      // Update form with AI data
-      setFormData(prev => ({
-        ...prev,
-        title: parsedData.title || parsedData.lesson_title || parsedData.name || prev.title,
-        description: parsedData.description || parsedData.lesson_description || parsedData.summary || prev.description,
-        category: parsedData.category || parsedData.topic || prev.category || availableCategories[0],
-        duration: safeNumber(parsedData.duration || parsedData.duration_minutes || parsedData.time_required || prev.duration),
-        difficulty: parsedData.difficulty || parsedData.difficulty_level || parsedData.level || prev.difficulty,
-        level: parsedData.level || parsedData.audience_level || prev.level,
-        modules: safeNumber(parsedData.modules || parsedData.module_count || prev.modules),
-        tags: parsedData.tags || parsedData.keywords || prev.tags,
-        type: parsedData.type || parsedData.lesson_type || prev.type,
-        content: parsedData.content || parsedData.lesson_content || prev.content
-      }))
-
-      // Clear AI input and hide section
-      setAiInput('')
-      setShowAiImport(false)
-      
-      alert('AI content succesvol geïmporteerd!')
-    } catch (error) {
-      alert('Fout bij importeren AI content. Controleer het format.')
-      console.error('AI Import error:', error)
-    }
-  }
-
-  const parseTextFormat = (text: string) => {
-    const result: any = {}
-    
-    // Extract title
-    const titleMatch = text.match(/Titel:\s*(.+)/i)
-    if (titleMatch) result.title = titleMatch[1].trim()
-
-    // Extract description
-    const descMatch = text.match(/Beschrijving:\s*(.+)/i)
-    if (descMatch) result.description = descMatch[1].trim()
-
-    // Extract category
-    const categoryMatch = text.match(/Categorie:\s*(.+)/i)
-    if (categoryMatch) result.category = categoryMatch[1].trim()
-
-    // Extract duration
-    const durationMatch = text.match(/Duur:\s*(\d+)/i)
-    if (durationMatch) result.duration = safeNumber(durationMatch[1])
-
-    // Extract difficulty
-    const difficultyMatch = text.match(/Moeilijkheid:\s*(Beginner|Intermediate|Expert)/i)
-    if (difficultyMatch) result.difficulty = difficultyMatch[1]
-
-    // Extract level
-    const levelMatch = text.match(/Niveau:\s*(.+)/i)
-    if (levelMatch) result.level = levelMatch[1]
-
-    // Extract type
-    const typeMatch = text.match(/Type:\s*(TEXT|VIDEO|QUIZ|DOWNLOAD)/i)
-    if (typeMatch) result.type = typeMatch[1]
-
-    return result
   }
 
   const handleAddTag = () => {
@@ -223,89 +143,154 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Basic validation
-    if (!formData.title || !formData.description || !formData.category) {
-      alert('Vul verplichte velden in: Titel, Beschrijving en Categorie')
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      // Prepare lesson data
-      const lessonData = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        content: formData.content || '',
-        status: formData.status,
-        level: formData.level.trim() || 'Introductie',
-        tags: formData.tags,
-        order: safeNumber(formData.order),
-        duration: safeNumber(formData.duration),
-        difficulty: formData.difficulty,
-        category: formData.category,
-        modules: safeNumber(formData.modules),
-        type: formData.type,
-        videoUrl: formData.videoUrl || ''
-      }
-
-      // For edit, add ID
-      if (lesson?.id) {
-        (lessonData as any).id = lesson.id
-      }
-
-      console.log('💾 Saving lesson to database:', lessonData)
-
-      // API call for lesson
-      const url = '/api/lessons'
-      const method = lesson?.id ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(lessonData),
-      })
-
-      console.log('📡 API Response status:', response.status)
-
-      if (!response.ok) {
-        // Better error handling for empty responses
-        let errorMessage = `Server error: ${response.status}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (jsonError) {
-          // If JSON parsing fails, use status text
-          errorMessage = response.statusText || errorMessage
-        }
-        throw new Error(errorMessage)
-      }
-
-      const savedLesson = await response.json()
-      console.log('✅ Lesson saved successfully:', savedLesson)
-      
-      // Call onSave with saved data
-      onSave(savedLesson)
-      
-      // Show success modal
-      setShowSuccessModal(true)
-      
-    } catch (error: any) {
-      console.error('❌ Save error:', error)
-      alert(`Fout bij opslaan lesson: ${error.message}`)
-    } finally {
-      setIsLoading(false)
+  const handleAddResource = () => {
+    if (resourceInput.trim() && !formData.resources.includes(resourceInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        resources: [...prev.resources, resourceInput.trim()]
+      }))
+      setResourceInput('')
     }
   }
+
+  const handleRemoveResource = (resourceToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      resources: prev.resources.filter(resource => resource !== resourceToRemove)
+    }))
+  }
+
+  const handleAddObjective = () => {
+    if (objectiveInput.trim() && !formData.objectives.includes(objectiveInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        objectives: [...prev.objectives, objectiveInput.trim()]
+      }))
+      setObjectiveInput('')
+    }
+  }
+
+  const handleRemoveObjective = (objectiveToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      objectives: prev.objectives.filter(obj => obj !== objectiveToRemove)
+    }))
+  }
+
+  const handleAddPrerequisite = () => {
+    if (prerequisiteInput.trim() && !formData.prerequisites.includes(prerequisiteInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        prerequisites: [...prev.prerequisites, prerequisiteInput.trim()]
+      }))
+      setPrerequisiteInput('')
+    }
+  }
+
+  const handleRemovePrerequisite = (prereqToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      prerequisites: prev.prerequisites.filter(prereq => prereq !== prereqToRemove)
+    }))
+  }
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  
+  if (!formData.title || !formData.description || !formData.category) {
+    alert('Vul verplichte velden in: Titel, Beschrijving en Categorie')
+    return
+  }
+
+  setIsLoading(true)
+
+  try {
+    // Map status van frontend naar backend formaat
+    const statusMapping = {
+      'PUBLISHED': 'Actief',
+      'ARCHIVED': 'Inactief', 
+      'CONCEPT': 'Concept'
+    }
+
+    const lessonData = {
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      content: formData.content || '',
+      type: formData.type,
+      difficulty: formData.difficulty,
+      duration: safeNumber(formData.duration),
+      category: formData.category,
+      tags: formData.tags,
+      status: statusMapping[formData.status as keyof typeof statusMapping] || 'Concept',
+      order: formData.order || 0,
+      resources: formData.resources,
+      objectives: formData.objectives,
+      prerequisites: formData.prerequisites
+    }
+
+    console.log('💾 Saving lesson data:', lessonData)
+
+    // Gebruik PUT voor zowel create als update
+    const url = lesson?.id ? `/api/lessons/${lesson.id}` : '/api/lessons'
+    const method = lesson?.id ? 'PUT' : 'POST'
+
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(lessonData),
+    })
+
+    if (!response.ok) {
+      let errorMessage = `Server error: ${response.status}`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.error || errorData.message || errorMessage
+      } catch (parseError) {
+        errorMessage = response.statusText || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    const savedLesson = await response.json()
+    console.log('✅ Lesson saved successfully:', savedLesson)
+    
+    // Transform de backend response naar frontend formaat
+    const transformedLesson = {
+      ...savedLesson,
+      status: savedLesson.status === 'PUBLISHED' ? 'PUBLISHED' : 
+              savedLesson.status === 'ARCHIVED' ? 'ARCHIVED' : 'CONCEPT',
+      // Zorg dat alle velden correct worden gemapped
+      duration: savedLesson.durationMinutes || savedLesson.duration || 0,
+      difficulty: savedLesson.difficulty || 'Beginner',
+      type: savedLesson.type || 'TEXT'
+    }
+    
+    onSave(transformedLesson)
+    setShowSuccessModal(true)
+    
+  } catch (error: any) {
+    console.error('❌ Save error:', error)
+    alert(`Fout bij opslaan lesson: ${error.message}`)
+  } finally {
+    setIsLoading(false)
+  }
+}
+
 
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false)
     onClose()
+  }
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'VIDEO': return <Icons.video className="w-5 h-5" />
+      case 'QUIZ': return <Icons.quiz className="w-5 h-5" />
+      case 'DOWNLOAD': return <Icons.download className="w-5 h-5" />
+      default: return <Icons.document className="w-5 h-5" />
+    }
   }
 
   return (
@@ -318,10 +303,10 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {lesson ? 'Lesson Bewerken' : 'Nieuwe Lesson Maken'}
+                  {lesson ? 'Les Bewerken' : 'Nieuwe Les Maken'}
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  {lesson ? 'Bewerk de lesson details' : 'Maak een nieuwe lesson aan'}
+                  {lesson ? 'Bewerk de les details' : 'Maak een nieuwe les aan'}
                 </p>
               </div>
               <button
@@ -336,70 +321,6 @@ export default function LessonEditor({ lesson, categories, onClose, onSave }: Le
 
           <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[70vh]">
             <div className="p-6 space-y-6">
-              {/* AI Content Import Section */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-blue-900">AI Content Import (ChatGPT)</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowAiImport(!showAiImport)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    disabled={isLoading}
-                  >
-                    {showAiImport ? 'Verbergen' : 'Toon AI Import'}
-                  </button>
-                </div>
-
-                {showAiImport && (
-                  <div className="space-y-3">
-                    <div>
-                      <textarea
-                        value={aiInput}
-                        onChange={(e) => setAiInput(e.target.value)}
-                        placeholder={`Plak hier je ChatGPT output...
-
-Voorbeeld format:
-Titel: Phishing Herkenning
-Beschrijving: Leer phishing emails herkennen en voorkomen
-Categorie: Security Basics
-Duur: 30
-Moeilijkheid: Beginner
-Niveau: Introductie
-Type: TEXT
-
-Of gebruik JSON format:
-{
-  "title": "Phishing Herkenning",
-  "description": "Leer phishing emails herkennen...",
-  "category": "Security Basics",
-  "duration": 30,
-  "difficulty": "Beginner",
-  "level": "Introductie",
-  "type": "TEXT",
-  "tags": ["phishing", "security"]
-}`}
-                        rows={8}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    
-                    <button
-                      type="button"
-                      onClick={handleAIImport}
-                      disabled={!aiInput.trim() || isLoading}
-                      className={`w-full py-2 px-4 rounded-lg font-medium ${
-                        !aiInput.trim() || isLoading
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      Importeer AI Content
-                    </button>
-                  </div>
-                )}
-              </div>
-
               {/* Basic Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -411,7 +332,7 @@ Of gebruik JSON format:
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Bijv: Phishing Herkenning"
+                    placeholder="Bijv: Introductie tot Security"
                     required
                     disabled={isLoading}
                   />
@@ -429,7 +350,7 @@ Of gebruik JSON format:
                     disabled={isLoading}
                   >
                     <option value="">Selecteer categorie</option>
-                    {availableCategories.map(category => (
+                    {(categories || []).map(category => (
                       <option key={category} value={category}>{category}</option>
                     ))}
                   </select>
@@ -446,29 +367,14 @@ Of gebruik JSON format:
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Korte beschrijving van de lesson..."
+                  placeholder="Korte beschrijving van de les..."
                   required
                   disabled={isLoading}
                 />
               </div>
 
-              {/* Content */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Inhoud
-                </label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
-                  rows={5}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Gedetailleerde inhoud van de lesson..."
-                  disabled={isLoading}
-                />
-              </div>
-
               {/* Lesson Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Type
@@ -479,10 +385,11 @@ Of gebruik JSON format:
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={isLoading}
                   >
-                    <option value="TEXT">Text</option>
-                    <option value="VIDEO">Video</option>
-                    <option value="QUIZ">Quiz</option>
-                    <option value="DOWNLOAD">Download</option>
+                    {lessonTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -504,7 +411,7 @@ Of gebruik JSON format:
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duur (min)
+                    Duur (minuten)
                   </label>
                   <input
                     type="number"
@@ -515,7 +422,192 @@ Of gebruik JSON format:
                     disabled={isLoading}
                   />
                 </div>
+              </div>
 
+              {/* Lesson Content */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Les Inhoud
+                </label>
+                <textarea
+                  rows={6}
+                  value={formData.content}
+                  onChange={(e) => handleInputChange('content', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Volledige inhoud van de les..."
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* Objectives */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Leerdoelen
+                </label>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={objectiveInput}
+                    onChange={(e) => setObjectiveInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddObjective())}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Voeg leerdoel toe..."
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddObjective}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Toevoegen
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {formData.objectives.map((objective, index) => (
+                    <li key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg border">
+                      <span className="text-gray-700">{objective}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveObjective(objective)}
+                        className="text-gray-500 hover:text-red-600"
+                        disabled={isLoading}
+                      >
+                        <Icons.trash className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Prerequisites */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vereiste Kennis
+                </label>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={prerequisiteInput}
+                    onChange={(e) => setPrerequisiteInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddPrerequisite())}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Voeg vereiste kennis toe..."
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddPrerequisite}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Toevoegen
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {formData.prerequisites.map((prereq, index) => (
+                    <li key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg border">
+                      <span className="text-gray-700">{prereq}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePrerequisite(prereq)}
+                        className="text-gray-500 hover:text-red-600"
+                        disabled={isLoading}
+                      >
+                        <Icons.trash className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Resources */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bronnen
+                </label>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={resourceInput}
+                    onChange={(e) => setResourceInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddResource())}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Voeg bron toe (URL of beschrijving)..."
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddResource}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Toevoegen
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {formData.resources.map((resource, index) => (
+                    <li key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg border">
+                      <span className="text-gray-700">{resource}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveResource(resource)}
+                        className="text-gray-500 hover:text-red-600"
+                        disabled={isLoading}
+                      >
+                        <Icons.trash className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags
+                </label>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Voeg tag toe..."
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Toevoegen
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-2 text-gray-600 hover:text-red-600"
+                        disabled={isLoading}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status and Order */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
@@ -526,32 +618,17 @@ Of gebruik JSON format:
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={isLoading}
                   >
-                    <option value="Concept">Concept</option>
-                    <option value="Actief">Actief</option>
-                    <option value="Inactief">Inactief</option>
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
-
-              {/* Second Settings Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Niveau
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.level}
-                    onChange={(e) => handleInputChange('level', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Bijv: Introductie"
-                    disabled={isLoading}
-                  />
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Order
+                    Volgorde
                   </label>
                   <input
                     type="number"
@@ -563,73 +640,6 @@ Of gebruik JSON format:
                   />
                 </div>
               </div>
-
-              {/* Video URL (only show for VIDEO type) */}
-              {formData.type === 'VIDEO' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Video URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.videoUrl}
-                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://example.com/video.mp4"
-                    disabled={isLoading}
-                  />
-                </div>
-              )}
-
-// In je LessonEditor.tsx - zoek de tags sectie en vervang deze:
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {Array.isArray(formData.tags) ? (
-                      formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="ml-2 text-blue-600 hover:text-blue-800"
-                            disabled={isLoading}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">Geen tags</p>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Voeg tag toe..."
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTag}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                      disabled={isLoading}
-                    >
-                      Toevoegen
-                    </button>
-                  </div>
-                </div>
             </div>
 
             {/* Footer */}
@@ -656,7 +666,7 @@ Of gebruik JSON format:
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
-                    {isLoading ? 'Opslaan...' : (lesson ? 'Bijwerken' : 'Lesson Aanmaken')}
+                    {isLoading ? 'Opslaan...' : (lesson ? 'Bijwerken' : 'Les Aanmaken')}
                   </button>
                 </div>
               </div>
@@ -675,16 +685,13 @@ Of gebruik JSON format:
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 ✅ Succesvol opgeslagen!
               </h3>
-              
               <p className="text-gray-600">
-                De lesson is succesvol opgeslagen in het systeem.
+                De les is succesvol opgeslagen in het systeem.
               </p>
             </div>
-
             <div className="bg-gray-50 px-6 py-4 rounded-b-lg">
               <button
                 onClick={handleSuccessModalClose}
@@ -699,3 +706,5 @@ Of gebruik JSON format:
     </>
   )
 }
+
+export default LessonEditor
