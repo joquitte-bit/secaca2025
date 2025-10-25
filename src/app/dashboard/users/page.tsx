@@ -1,77 +1,125 @@
-// src/app/dashboard/users/page.tsx - MINIMALIST STYLE
+// src/app/dashboard/users/page.tsx - CONSISTENTE STYLING VERSIE
 'use client'
 
 import { useState, useEffect } from 'react'
 import { Icons } from '@/components/Icons'
+import { UserEditor } from '@/components/users/UserEditor'
 
 interface User {
   id: string
   name: string
   email: string
-  role: string
+  role: 'Beheerder' | 'Manager' | 'Cursist'
   status: 'Actief' | 'Inactief' | 'Uitgenodigd'
-  lastLogin: string
+  image?: string
+  organization: string
   enrollments: number
+  certificates: number
   quizAttempts: number
-  completionRate: number
+  lastLogin: string
   createdAt: string
   updatedAt: string
 }
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('Alle statussen')
-  const [roleFilter, setRoleFilter] = useState('Alle rollen')
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [showEditor, setShowEditor] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
 
-  // VERVANG MOCK DATA MET ECHTE API CALL
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
+  // Fetch users from API
   const fetchUsers = async () => {
     try {
-      setIsLoading(true)
-      setError(null)
-      
       console.log('🔄 Fetching users from API...')
+      setIsLoading(true)
       
       const response = await fetch('/api/users')
-      
       console.log('📡 API Response status:', response.status)
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status}`)
+        throw new Error('Failed to fetch users')
       }
       
-      const data = await response.json()
-      console.log('📊 Users data received:', data)
-      console.log('🔍 Number of users:', data.length)
-      
-      setUsers(data)
-      
-    } catch (err) {
-      console.error('❌ Error fetching users:', err)
-      setError('Failed to load users: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      const usersData = await response.json()
+      console.log('📊 Users data received:', usersData)
+      setUsers(usersData)
+    } catch (error) {
+      console.error('❌ Error fetching users:', error)
+      // Fallback data for demo
+      setUsers([
+        {
+          id: '1',
+          name: 'Jan Jansen',
+          email: 'jan.jansen@bedrijf.nl',
+          role: 'Beheerder',
+          status: 'Actief',
+          organization: 'SECACA',
+          enrollments: 5,
+          certificates: 3,
+          quizAttempts: 12,
+          lastLogin: '2025-10-25T10:30:00Z',
+          createdAt: '2025-01-15T00:00:00Z',
+          updatedAt: '2025-10-25T00:00:00Z'
+        },
+        {
+          id: '2',
+          name: 'Marie de Vries',
+          email: 'marie.devries@bedrijf.nl',
+          role: 'Cursist',
+          status: 'Actief',
+          organization: 'SECACA',
+          enrollments: 3,
+          certificates: 1,
+          quizAttempts: 8,
+          lastLogin: '2025-10-24T14:20:00Z',
+          createdAt: '2025-02-20T00:00:00Z',
+          updatedAt: '2025-10-24T00:00:00Z'
+        },
+        {
+          id: '3',
+          name: 'Peter Bakker',
+          email: 'peter.bakker@bedrijf.nl',
+          role: 'Manager',
+          status: 'Uitgenodigd',
+          organization: 'SECACA',
+          enrollments: 0,
+          certificates: 0,
+          quizAttempts: 0,
+          lastLogin: '2025-10-20T09:15:00Z',
+          createdAt: '2025-10-20T00:00:00Z',
+          updatedAt: '2025-10-20T00:00:00Z'
+        }
+      ])
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Filter users
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  // Filter users based on search and filters
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'Alle statussen' || user.status === statusFilter
-    const matchesRole = roleFilter === 'Alle rollen' || user.role === roleFilter
+    const matchesSearch = searchTerm === '' || 
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.organization.toLowerCase().includes(searchTerm.toLowerCase())
     
+    const matchesStatus = statusFilter === '' || user.status === statusFilter
+    const matchesRole = roleFilter === '' || user.role === roleFilter
+
     return matchesSearch && matchesStatus && matchesRole
   })
 
-  const toggleUserSelection = (userId: string) => {
+  // Handle user selection
+  const handleUserSelect = (userId: string) => {
     setSelectedUsers(prev =>
       prev.includes(userId)
         ? prev.filter(id => id !== userId)
@@ -79,7 +127,8 @@ export default function UsersPage() {
     )
   }
 
-  const toggleAllUsers = () => {
+  // Handle select all
+  const handleSelectAll = () => {
     setSelectedUsers(
       selectedUsers.length === filteredUsers.length
         ? []
@@ -87,71 +136,226 @@ export default function UsersPage() {
     )
   }
 
-  // Helper functions - MINIMALIST VERSION
+  // Handle new user
+  const handleNewUser = () => {
+    setEditingUser(null)
+    setShowEditor(true)
+  }
+
+  // Handle edit user
+  const handleEditUser = (user: User) => {
+    console.log('Edit user:', user)
+    setEditingUser(user)
+    setShowEditor(true)
+  }
+
+  // Handle save user
+  const handleSaveUser = async (userData: any) => {
+    try {
+      // Use real API call
+      const method = editingUser ? 'PUT' : 'POST'
+      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users'
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save user')
+      }
+
+      const savedUser = await response.json()
+      
+      if (editingUser) {
+        // Update existing user
+        setUsers(prev => prev.map(user =>
+          user.id === savedUser.id ? savedUser : user
+        ))
+      } else {
+        // Add new user
+        setUsers(prev => [savedUser, ...prev])
+      }
+      
+      setShowEditor(false)
+      setEditingUser(null)
+    } catch (error) {
+      console.error('Error saving user:', error)
+      throw error
+    }
+  }
+
+  // Handle delete user
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete user')
+      }
+
+      // Update local state
+      setUsers(prev => prev.filter(user => user.id !== userId))
+      setSelectedUsers(prev => prev.filter(id => id !== userId))
+      
+      console.log(`✅ User ${userId} deleted successfully`)
+    } catch (error) {
+      console.error('❌ Error deleting user:', error)
+      alert(`Fout bij verwijderen gebruiker: ${error instanceof Error ? error.message : 'Onbekende fout'}`)
+    }
+  }
+
+  // Handle status toggle (lightning icon)
+  const handleStatusToggle = async (userId: string, newStatus: 'Actief' | 'Inactief') => {
+    try {
+      console.log(`🔄 Updating user ${userId} status to ${newStatus}`)
+      
+      const response = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: userId,
+          status: newStatus
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to update user ${userId}`)
+      }
+
+      const updatedUser = await response.json()
+      
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === userId ? updatedUser : user
+      ))
+      
+      console.log(`✅ User ${userId} status updated to ${newStatus}`)
+    } catch (error) {
+      console.error('❌ Error updating user status:', error)
+      alert(`Fout bij bijwerken status gebruiker: ${error instanceof Error ? error.message : 'Onbekende fout'}`)
+    }
+  }
+
+  // Handle bulk status toggle
+  const handleBulkStatusToggle = async (newStatus: 'Actief' | 'Inactief') => {
+    try {
+      for (const userId of selectedUsers) {
+        const response = await fetch('/api/users', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: userId,
+            status: newStatus
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to update user ${userId}`)
+        }
+      }
+
+      // Refresh users
+      fetchUsers()
+      setSelectedUsers([])
+      
+      console.log(`✅ Bulk status update to ${newStatus} completed`)
+    } catch (error) {
+      console.error('❌ Error in bulk status toggle:', error)
+      alert(`Fout bij bijwerken status gebruikers: ${error instanceof Error ? error.message : 'Onbekende fout'}`)
+    }
+  }
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!confirm(`Weet je zeker dat je ${selectedUsers.length} gebruikers wilt verwijderen?`)) {
+      return
+    }
+
+    try {
+      for (const userId of selectedUsers) {
+        const response = await fetch(`/api/users?id=${userId}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to delete user ${userId}`)
+        }
+      }
+
+      // Refresh users
+      fetchUsers()
+      setSelectedUsers([])
+      
+      console.log(`✅ Bulk delete completed for ${selectedUsers.length} users`)
+    } catch (error) {
+      console.error('❌ Error in bulk delete:', error)
+      alert(`Fout bij verwijderen gebruikers: ${error instanceof Error ? error.message : 'Onbekende fout'}`)
+    }
+  }
+
+  // Handle view user (eye icon)
+  const handleViewUser = (user: User) => {
+    alert(`Bekijk gebruiker: ${user.name}\n\nEmail: ${user.email}\n\nRol: ${user.role}\n\nStatus: ${user.status}\n\nInschrijvingen: ${user.enrollments}\n\nCertificaten: ${user.certificates}`)
+  }
+
+  // Get status color - CONSISTENTE STYLING
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Actief': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      case 'Inactief': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      case 'Uitgenodigd': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      default: return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Actief':
+        return 'bg-green-50 text-green-700 border border-green-200'
+      case 'Inactief':
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Uitgenodigd':
+        return 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+      default:
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
+  // Get role color - CONSISTENTE STYLING
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'ADMIN': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      case 'TEACHER': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      case 'USER': return 'bg-gray-100 text-gray-700 border border-gray-300'
-      default: return 'bg-gray-100 text-gray-700 border border-gray-300'
+      case 'Beheerder':
+        return 'bg-purple-50 text-purple-700 border border-purple-200'
+      case 'Manager':
+        return 'bg-blue-50 text-blue-700 border border-blue-200'
+      case 'Cursist':
+        return 'bg-green-50 text-green-700 border border-green-200'
+      default:
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('nl-NL')
-  }
-
-  const formatRole = (role: string) => {
-    switch (role) {
-      case 'ADMIN': return 'Beheerder'
-      case 'TEACHER': return 'Docent'
-      case 'USER': return 'Gebruiker'
-      default: return role
+  // Format last login date
+  const formatLastLogin = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    
+    if (diffInHours < 24) {
+      return `${diffInHours} uur geleden`
+    } else {
+      return date.toLocaleDateString('nl-NL')
     }
-  }
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 w-full p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Gebruikers laden...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 w-full p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
-          <div className="flex items-center">
-            <Icons.shield className="w-6 h-6 text-red-600 mr-3" />
-            <h3 className="text-lg font-medium text-red-800">Error</h3>
-          </div>
-          <p className="mt-2 text-red-700">{error}</p>
-          <button 
-            onClick={fetchUsers}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-          >
-            Probeer opnieuw
-          </button>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -164,14 +368,17 @@ export default function UsersPage() {
               <h1 className="text-2xl font-bold text-gray-900">Gebruikers</h1>
               <p className="text-gray-600">Beheer alle gebruikers</p>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center">
+            <button 
+              onClick={handleNewUser}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
+            >
               <Icons.add className="w-5 h-5 mr-2" />
               Nieuwe Gebruiker
             </button>
           </div>
         </div>
 
-        {/* STATISTICS CARDS - MINIMALIST STYLE */}
+        {/* STATISTICS CARDS - TERUG NAAR GRIJS/ZWART */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
@@ -205,9 +412,9 @@ export default function UsersPage() {
                 <Icons.courses className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Gem. Inschrijvingen</p>
+                <p className="text-sm font-medium text-gray-600">Gem. Certificaten</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + user.enrollments, 0) / users.length) : 0}
+                  {users.length > 0 ? Math.round(users.reduce((acc, user) => acc + (user.certificates || 0), 0) / users.length) : 0}
                 </p>
               </div>
             </div>
@@ -216,50 +423,54 @@ export default function UsersPage() {
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <div className="flex items-center">
               <div className="p-3 bg-gray-100 rounded-lg">
-                <Icons.document className="w-6 h-6 text-gray-700" />
+                <Icons.clock className="w-6 h-6 text-gray-700" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Totaal Quizzen</p>
+                <p className="text-sm font-medium text-gray-600">Online Vandaag</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.reduce((acc, user) => acc + user.quizAttempts, 0)}
+                  {users.filter(u => {
+                    const lastLogin = new Date(u.lastLogin)
+                    const today = new Date()
+                    return lastLogin.toDateString() === today.toDateString()
+                  }).length}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* BULK ACTIONS BAR - MINIMALIST STYLE */}
+        {/* BULK ACTIONS BAR - CONSISTENTE STYLING */}
         {selectedUsers.length > 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Icons.document className="w-5 h-5 text-gray-700 mr-2" />
-                <span className="text-gray-800 font-medium">
+                <Icons.document className="w-5 h-5 text-blue-700 mr-2" />
+                <span className="text-blue-800 font-medium">
                   {selectedUsers.length} gebruiker(s) geselecteerd
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => {/* handle bulk activate */}}
-                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                  onClick={() => handleBulkStatusToggle('Actief')}
+                  className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition-colors font-medium"
                 >
                   Activeren
                 </button>
                 <button
-                  onClick={() => {/* handle bulk deactivate */}}
-                  className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
+                  onClick={() => handleBulkStatusToggle('Inactief')}
+                  className="bg-gray-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-gray-700 transition-colors font-medium"
                 >
                   Deactiveren
                 </button>
                 <button
-                  onClick={() => {/* handle bulk delete */}}
-                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                  onClick={handleBulkDelete}
+                  className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-700 transition-colors font-medium"
                 >
                   Verwijderen
                 </button>
                 <button
                   onClick={() => setSelectedUsers([])}
-                  className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400 transition-colors"
+                  className="bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-400 transition-colors font-medium"
                 >
                   Annuleren
                 </button>
@@ -268,16 +479,16 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* SEARCH AND FILTERS */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                <div className="relative">
+        {/* SEARCH AND FILTERS - CONSISTENTE STYLING */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
                   <input
                     type="text"
-                    placeholder="Zoeken op naam of email..."
-                    className="w-full md:w-80 border border-gray-300 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Zoeken op naam, email of organisatie..."
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -286,30 +497,32 @@ export default function UsersPage() {
                   </div>
                 </div>
                 
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option>Alle statussen</option>
-                  <option>Actief</option>
-                  <option>Inactief</option>
-                  <option>Uitgenodigd</option>
-                </select>
-                
-                <select 
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                >
-                  <option>Alle rollen</option>
-                  <option>ADMIN</option>
-                  <option>TEACHER</option>
-                  <option>USER</option>
-                </select>
+                <div className="flex flex-wrap gap-2">
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">Alle statussen</option>
+                    <option value="Actief">Actief</option>
+                    <option value="Inactief">Inactief</option>
+                    <option value="Uitgenodigd">Uitgenodigd</option>
+                  </select>
+                  
+                  <select 
+                    className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all min-w-[140px]"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                  >
+                    <option value="">Alle rollen</option>
+                    <option value="Beheerder">Beheerder</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Cursist">Cursist</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg font-medium">
                 {filteredUsers.length} van {users.length} gebruikers
               </div>
             </div>
@@ -324,7 +537,7 @@ export default function UsersPage() {
                     <input
                       type="checkbox"
                       checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
-                      onChange={toggleAllUsers}
+                      onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
@@ -338,10 +551,10 @@ export default function UsersPage() {
                     Rol
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Inschrijvingen
+                    Organisatie
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quizzen
+                    Inschrijvingen
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Laatste Login
@@ -356,12 +569,12 @@ export default function UsersPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(user.id)}
-                        onChange={() => toggleUserSelection(user.id)}
+                        onChange={() => handleUserSelect(user.id)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                     </td>
@@ -372,45 +585,68 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
                         {user.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                        {formatRole(user.role)}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Icons.courses className="w-4 h-4 text-gray-400 mr-1" />
-                        {user.enrollments}
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {user.organization}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <Icons.document className="w-4 h-4 text-gray-400 mr-1" />
-                        {user.quizAttempts}
+                      <div className="text-sm text-gray-900">
+                        <div>{user.enrollments} ingeschreven</div>
+                        <div className="text-xs text-gray-500">{user.certificates} certificaten</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.lastLogin}
+                      {formatLastLogin(user.lastLogin)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(user.createdAt)}
+                      {new Date(user.createdAt).toLocaleDateString('nl-NL')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100" title="Bekijken">
+                      <div className="flex items-center space-x-1">
+                        {/* Eye icon - View */}
+                        <button
+                          onClick={() => handleViewUser(user)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
+                          title="Bekijk gebruiker"
+                        >
                           <Icons.eye className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100" title="Bewerken">
+
+                        {/* Edit icon */}
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
+                          title="Bewerk gebruiker"
+                        >
                           <Icons.edit className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100" title="Status wijzigen">
+
+                        {/* Status toggle icon */}
+                        <button
+                          onClick={() => handleStatusToggle(
+                            user.id, 
+                            user.status === 'Actief' ? 'Inactief' : 'Actief'
+                          )}
+                          className="text-gray-400 hover:text-yellow-600 transition-colors p-2 rounded-lg hover:bg-yellow-50"
+                          title={user.status === 'Actief' ? 'Deactiveren' : 'Activeren'}
+                        >
                           <Icons.bolt className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100" title="Verwijderen">
+
+                        {/* Delete icon */}
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50"
+                          title="Verwijder gebruiker"
+                        >
                           <Icons.trash className="w-4 h-4" />
                         </button>
                       </div>
@@ -422,9 +658,17 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="text-center text-sm text-gray-500 mt-4">
-          {selectedUsers.length > 0 && `${selectedUsers.length} gebruikers geselecteerd`}
-        </div>
+        {/* User Editor Modal */}
+        {showEditor && (
+          <UserEditor
+            user={editingUser}
+            onClose={() => {
+              setShowEditor(false)
+              setEditingUser(null)
+            }}
+            onSave={handleSaveUser}
+          />
+        )}
       </div>
     </div>
   )

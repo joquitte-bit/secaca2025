@@ -1,4 +1,4 @@
-// src/app/dashboard/lessons/page.tsx
+// src/app/dashboard/lessons/page.tsx - GEFIXTE VERSIE
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -15,7 +15,7 @@ interface Lesson {
   duration: number
   category: string
   tags: string[]
-  status: 'PUBLISHED' | 'ARCHIVED' | 'CONCEPT'  // Gebruik CONCEPT i.p.v. DRAFT
+  status: 'PUBLISHED' | 'ARCHIVED' | 'CONCEPT'
   order: number
   resources: string[]
   objectives: string[]
@@ -75,7 +75,7 @@ const fetchLessons = async () => {
       ...lesson,
       status: lesson.status === 'PUBLISHED' ? 'PUBLISHED' : 
               lesson.status === 'ARCHIVED' ? 'ARCHIVED' : 'CONCEPT',
-      duration: lesson.durationMinutes || lesson.duration || 0, // Map durationMinutes naar duration
+      duration: lesson.durationMinutes || lesson.duration || 0,
       difficulty: lesson.difficulty || 'Beginner',
       type: lesson.type || 'TEXT',
       category: lesson.category || '',
@@ -230,7 +230,7 @@ const fetchLessons = async () => {
       setLessons(prev => prev.map(lesson => 
         lesson.id === lessonId ? {
           ...lesson,
-          status: newStatus // Gebruik de nieuwe status direct
+          status: newStatus
         } : lesson
       ))
       
@@ -315,43 +315,59 @@ const fetchLessons = async () => {
     alert(`Bekijk lesson: ${lesson.title}\n\nBeschrijving: ${lesson.description}\n\nType: ${lesson.type}\n\nDuur: ${lesson.duration} minuten`)
   }
 
-  // Get status color - MET KLEUREN VOOR DUIDELIJKHEID
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'PUBLISHED':
-      return 'bg-green-100 text-green-800 border border-green-200'
-    case 'CONCEPT':
-      return 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-    case 'ARCHIVED':
-      return 'bg-gray-100 text-gray-600 border border-gray-300'
-    default:
-      return 'bg-gray-100 text-gray-700 border border-gray-300'
+  // Get status color - CONSISTENTE KLEUREN
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PUBLISHED':
+        return 'bg-green-50 text-green-700 border border-green-200'
+      case 'CONCEPT':
+        return 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+      case 'ARCHIVED':
+        return 'bg-red-50 text-red-700 border border-red-200'
+      default:
+        return 'bg-gray-100 text-gray-700 border border-gray-300'
+    }
   }
-}
 
-// Status display text
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'PUBLISHED':
-      return 'Actief'
-    case 'CONCEPT':
-      return 'Concept'
-    case 'ARCHIVED':
-      return 'Inactief'
-    default:
-      return status
+  // Status display text
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'PUBLISHED':
+        return 'Actief'
+      case 'CONCEPT':
+        return 'Concept'
+      case 'ARCHIVED':
+        return 'Inactief'
+      default:
+        return status
+    }
   }
-}
 
-  // Get difficulty color - MINIMALIST VERSION
+  // Get difficulty color - CONSISTENTE KLEUREN (ZELFDE ALS MODULES)
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Beginner':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-green-50 text-green-700 border border-green-200'
       case 'Intermediate':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-blue-50 text-blue-700 border border-blue-200'
       case 'Expert':
+        return 'bg-purple-50 text-purple-700 border border-purple-200'
+      default:
         return 'bg-gray-100 text-gray-700 border border-gray-300'
+    }
+  }
+
+  // Get type color - NIEUWE KLEUREN VOOR TYPES
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'VIDEO':
+        return 'bg-red-50 text-red-700 border border-red-200'
+      case 'QUIZ':
+        return 'bg-orange-50 text-orange-700 border border-orange-200'
+      case 'TEXT':
+        return 'bg-blue-50 text-blue-700 border border-blue-200'
+      case 'DOWNLOAD':
+        return 'bg-indigo-50 text-indigo-700 border border-indigo-200'
       default:
         return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
@@ -360,10 +376,16 @@ const getStatusText = (status: string) => {
   // Get type icon
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'VIDEO': return <Icons.video className="w-4 h-4 text-blue-600" />
-      case 'QUIZ': return <Icons.quiz className="w-4 h-4 text-purple-600" />
-      case 'DOWNLOAD': return <Icons.download className="w-4 h-4 text-green-600" />
-      default: return <Icons.document className="w-4 h-4 text-gray-600" />
+      case 'VIDEO':
+        return <Icons.video className="w-4 h-4" />
+      case 'QUIZ':
+        return <Icons.quiz className="w-4 h-4" />
+      case 'TEXT':
+        return <Icons.document className="w-4 h-4" />
+      case 'DOWNLOAD':
+        return <Icons.download className="w-4 h-4" />
+      default:
+        return <Icons.document className="w-4 h-4" />
     }
   }
 
@@ -510,7 +532,7 @@ const getStatusText = (status: string) => {
                   >
                     <option value="">Alle statussen</option>
                     <option value="PUBLISHED">Actief</option>
-                    <option value="DRAFT">Concept</option>
+                    <option value="CONCEPT">Concept</option>
                     <option value="ARCHIVED">Inactief</option>
                   </select>
                   
@@ -544,7 +566,7 @@ const getStatusText = (status: string) => {
                     <option value="">Alle types</option>
                     <option value="VIDEO">Video</option>
                     <option value="QUIZ">Quiz</option>
-                    <option value="TEXT">Text</option>
+                    <option value="TEXT">Tekst</option>
                     <option value="DOWNLOAD">Download</option>
                   </select>
                 </div>
@@ -613,13 +635,15 @@ const getStatusText = (status: string) => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        {getTypeIcon(lesson.type)}
-                        <span className="ml-2 capitalize">{lesson.type.toLowerCase()}</span>
+                      <div className="flex items-center">
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(lesson.type)}`}>
+                          <span className="mr-1">{getTypeIcon(lesson.type)}</span>
+                          {lesson.type}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
                         {getStatusText(lesson.status)}
                       </span>
                     </td>
@@ -627,7 +651,7 @@ const getStatusText = (status: string) => {
                       {lesson.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(lesson.difficulty)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(lesson.difficulty)}`}>
                         {lesson.difficulty}
                       </span>
                     </td>
@@ -645,7 +669,7 @@ const getStatusText = (status: string) => {
                         {/* Eye icon - View */}
                         <button
                           onClick={() => handleViewLesson(lesson)}
-                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-blue-50"
                           title="Bekijk lesson"
                         >
                           <Icons.eye className="w-4 h-4" />
@@ -654,17 +678,21 @@ const getStatusText = (status: string) => {
                         {/* Edit icon */}
                         <button
                           onClick={() => handleEditLesson(lesson)}
-                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-green-600 transition-colors p-2 rounded hover:bg-green-50"
                           title="Bewerk lesson"
                         >
                           <Icons.edit className="w-4 h-4" />
                         </button>
 
-                        {/* Status toggle icon - GECORRIGEERDE VERSIE */}
+                        {/* Status toggle icon */}
                         <button
                           onClick={() => handleStatusToggle(lesson.id, lesson.status)}
-                          className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100"
-                          title={lesson.status === 'PUBLISHED' ? 'Deactiveren' : 'Activeren'}
+                          className={`transition-colors p-2 rounded ${
+                            lesson.status === 'PUBLISHED' 
+                              ? 'text-yellow-400 hover:text-yellow-600 hover:bg-yellow-50' 
+                              : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                          }`}
+                          title={lesson.status === 'PUBLISHED' ? 'Archiveren' : 'Publiceren'}
                         >
                           <Icons.bolt className="w-4 h-4" />
                         </button>
@@ -672,7 +700,7 @@ const getStatusText = (status: string) => {
                         {/* Delete icon */}
                         <button
                           onClick={() => handleDeleteLesson(lesson.id)}
-                          className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50"
                           title="Verwijder lesson"
                         >
                           <Icons.trash className="w-4 h-4" />

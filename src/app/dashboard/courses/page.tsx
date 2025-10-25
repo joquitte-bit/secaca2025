@@ -1,4 +1,4 @@
-// src/app/dashboard/courses/page.tsx - MINIMALIST STYLE
+// src/app/dashboard/courses/page.tsx - GEFIXTE VERSIE MET KLEUREN
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -267,29 +267,29 @@ export default function CoursesPage() {
     alert(`Bekijk course: ${course.title}\n\nBeschrijving: ${course.description}\n\nModules: ${course.modules}\n\nDuur: ${course.duration} minuten`)
   }
 
-  // Get status color - MINIMALIST VERSION
+  // Get status color - CONSISTENTE KLEUREN
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Actief':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-green-50 text-green-700 border border-green-200'
       case 'Concept':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-yellow-50 text-yellow-700 border border-yellow-200'
       case 'Inactief':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-red-50 text-red-700 border border-red-200'
       default:
         return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
   }
 
-  // Get difficulty color - MINIMALIST VERSION
+  // Get difficulty color - CONSISTENTE KLEUREN
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Beginner':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-green-50 text-green-700 border border-green-200'
       case 'Intermediate':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-blue-50 text-blue-700 border border-blue-200'
       case 'Expert':
-        return 'bg-gray-100 text-gray-700 border border-gray-300'
+        return 'bg-purple-50 text-purple-700 border border-purple-200'
       default:
         return 'bg-gray-100 text-gray-700 border border-gray-300'
     }
@@ -541,7 +541,7 @@ export default function CoursesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(course.status)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(course.status)}`}>
                         {course.status}
                       </span>
                     </td>
@@ -549,7 +549,7 @@ export default function CoursesPage() {
                       {course.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(course.difficulty)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(course.difficulty)}`}>
                         {course.difficulty}
                       </span>
                     </td>
@@ -573,7 +573,7 @@ export default function CoursesPage() {
                         {/* Eye icon - View */}
                         <button
                           onClick={() => handleViewCourse(course)}
-                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-blue-50"
                           title="Bekijk course"
                         >
                           <Icons.eye className="w-4 h-4" />
@@ -582,7 +582,7 @@ export default function CoursesPage() {
                         {/* Edit icon */}
                         <button
                           onClick={() => handleEditCourse(course)}
-                          className="text-gray-600 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-green-600 transition-colors p-2 rounded hover:bg-green-50"
                           title="Bewerk course"
                         >
                           <Icons.edit className="w-4 h-4" />
@@ -594,7 +594,11 @@ export default function CoursesPage() {
                             course.id, 
                             course.status === 'Actief' ? 'Inactief' : 'Actief'
                           )}
-                          className="text-gray-600 hover:text-yellow-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className={`transition-colors p-2 rounded ${
+                            course.status === 'Actief' 
+                              ? 'text-yellow-400 hover:text-yellow-600 hover:bg-yellow-50' 
+                              : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                          }`}
                           title={course.status === 'Actief' ? 'Deactiveren' : 'Activeren'}
                         >
                           <Icons.bolt className="w-4 h-4" />
@@ -603,7 +607,7 @@ export default function CoursesPage() {
                         {/* Delete icon */}
                         <button
                           onClick={() => handleDeleteCourse(course.id)}
-                          className="text-gray-600 hover:text-red-600 transition-colors p-1 rounded hover:bg-gray-100"
+                          className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50"
                           title="Verwijder course"
                         >
                           <Icons.trash className="w-4 h-4" />
