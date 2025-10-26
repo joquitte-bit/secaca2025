@@ -41,21 +41,8 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-gray-200 fixed left-0 top-0 flex flex-col">
-      {/* Header */}
-      <div className="p-6 bg-white">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-gray-900">SECACA Learn</h1>
-            <p className="text-gray-500 text-xs">Training Platform</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
+    <div className="w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 fixed left-0 top-16 flex flex-col"> {/* top-16 i.p.v. top-0 */}
+      {/* Content - ZONDER header, begint direct met course info */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
           {/* Course Info */}
@@ -97,8 +84,8 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
           {/* Modules Navigation */}
           <nav className="space-y-2">
             {/* MODULES TITEL MET LIJN - zoals in dashboard */}
-            <div className="border-b border-gray-200 pb-3 mb-3">
-              <h3 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
+  <div className="border-b border-gray-200 pb-3 mb-3"> {/* Deze mag blijven? */}
+    <h3 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
                 MODULES
               </h3>
             </div>

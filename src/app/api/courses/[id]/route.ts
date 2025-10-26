@@ -20,9 +20,14 @@ export async function GET(
                       select: {
                         id: true,
                         title: true,
-                        duration: true,
-                        // Verwijder 'completed' als het niet in je schema bestaat
-                        // completed: true
+                        durationMinutes: true, // ✅ CORRECT: durationMinutes i.p.v. duration
+                        description: true,
+                        type: true,
+                        status: true,
+                        difficulty: true,
+                        category: true,
+                        videoUrl: true,
+                        order: true
                       }
                     }
                   },
@@ -47,7 +52,7 @@ export async function GET(
   }
 }
 
-// Houd bestaande PUT, PATCH, DELETE methods
+// Houd de rest van de methods hetzelfde...
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }

@@ -25,7 +25,7 @@ export default function LessonsNavigator({ module, currentLessonId, courseId }: 
   const lessons = module.lessonModules.map(lm => lm.lesson);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg shadow-sm p-6">
       <h3 className="font-semibold text-gray-900 text-lg mb-4">
         Lessen in deze module
       </h3>
@@ -39,10 +39,10 @@ export default function LessonsNavigator({ module, currentLessonId, courseId }: 
             <Link
               key={lesson.id}
               href={`/learn/courses/${courseId}/modules/${module.id}/lessons/${lesson.id}`}
-              className={`block p-3 rounded-lg border transition-colors ${
+              className={`block p-3 rounded-lg transition-colors ${
                 isCurrentLesson 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-50 text-blue-700' 
+                  : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -74,7 +74,7 @@ export default function LessonsNavigator({ module, currentLessonId, courseId }: 
       </div>
 
       {/* Module Progress Summary */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-6 pt-4">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>Module voortgang</span>
           <span>0 / {lessons.length}</span>

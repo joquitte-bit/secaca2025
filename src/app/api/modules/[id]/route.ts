@@ -13,9 +13,35 @@ export async function GET(
       include: {
         lessonModules: {
           include: {
-            lesson: true
+            lesson: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                type: true,
+                content: true,
+                durationMinutes: true,
+                status: true,
+                difficulty: true,
+                category: true,
+                videoUrl: true,
+                order: true,
+                tags: true
+              }
+            }
           },
           orderBy: { order: 'asc' }
+        },
+        courseModules: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                title: true,
+                description: true
+              }
+            }
+          }
         }
       }
     });
@@ -26,13 +52,24 @@ export async function GET(
     }
 
     console.log('✅ Module found:', module.title);
-    return Response.json(module);
+    
+    // Transform the response to match frontend expectations
+    const transformedModule = {
+      ...module,
+      lessons: module.lessonModules.map(lm => lm.lesson),
+      courses: module.courseModules.map(cm => cm.course),
+      duration: module.duration || 0,
+      lessonCount: module.lessonModules.length
+    };
+
+    return Response.json(transformedModule);
   } catch (error) {
     console.error('❌ Error fetching module:', error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
+// Houd de bestaande PUT, PATCH, DELETE methods hetzelfde
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
