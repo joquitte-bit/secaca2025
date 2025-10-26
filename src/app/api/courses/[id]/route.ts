@@ -1,25 +1,39 @@
 // src/app/api/courses/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, CourseStatus } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-// GET /api/courses/[id] - Haal specifieke course op
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
     const course = await prisma.course.findUnique({
-      where: { id },
-include: {
-  courseModules: {  // 👈 courseModules i.p.v. modules
-    include: {
-      module: true
-    }
-  }
-}
+      where: { id: params.id },
+      include: {
+        courseModules: {
+          include: {
+            module: {
+              include: {
+                lessonModules: {
+                  include: {
+                    lesson: {
+                      select: {
+                        id: true,
+                        title: true,
+                        duration: true,
+                        // Verwijder 'completed' als het niet in je schema bestaat
+                        // completed: true
+                      }
+                    }
+                  },
+                  orderBy: { order: 'asc' }
+                }
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
     });
 
     if (!course) {
@@ -29,101 +43,69 @@ include: {
     return NextResponse.json(course);
   } catch (error) {
     console.error('Error fetching course:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// PATCH /api/courses/[id] - Update course
-export async function PATCH(
+// Houd bestaande PUT, PATCH, DELETE methods
+export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
     const body = await request.json();
-    const { title, description, summary, status, level, tags, slug } = body;
+    const { title, description, category, difficulty, status, tags, modules } = body;
 
-    // Check if course exists
-    const existingCourse = await prisma.course.findUnique({
-      where: { id },
-    });
-
-    if (!existingCourse) {
-      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-    }
-
-    // Map status to Prisma enum
-    let prismaStatus: CourseStatus | undefined = undefined;
-    if (status === 'Actief') prismaStatus = CourseStatus.PUBLISHED;
-    if (status === 'Inactief') prismaStatus = CourseStatus.ARCHIVED;
-    if (status === 'Concept') prismaStatus = CourseStatus.DRAFT;
-
-    // Tags als JSON string opslaan
-    const tagsJson = tags ? JSON.stringify(tags) : undefined;
-
-    // Update data object
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (title) updateData.title = title;
-    if (description) updateData.description = description;
-    if (summary) updateData.summary = summary;
-    if (prismaStatus) updateData.status = prismaStatus;
-    if (level) updateData.level = level;
-    if (tagsJson) updateData.tags = tagsJson;
-    if (slug) updateData.slug = slug;
-
-    // Update course
     const updatedCourse = await prisma.course.update({
-      where: { id },
-      data: updateData,
+      where: { id: params.id },
+      data: {
+        title,
+        description,
+        category,
+        difficulty,
+        status,
+        tags: tags ? JSON.stringify(tags) : undefined,
+      },
     });
 
     return NextResponse.json(updatedCourse);
   } catch (error) {
     console.error('Error updating course:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// DELETE /api/courses/[id] - Verwijder course
-export async function DELETE(
+export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const body = await request.json();
     
-    // Check if course exists
-    const existingCourse = await prisma.course.findUnique({
-      where: { id },
+    const updatedCourse = await prisma.course.update({
+      where: { id: params.id },
+      data: body,
     });
 
-    if (!existingCourse) {
-      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-    }
+    return NextResponse.json(updatedCourse);
+  } catch (error) {
+    console.error('Error patching course:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
-    // Delete course
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
     await prisma.course.delete({
-      where: { id },
+      where: { id: params.id },
     });
 
-    return NextResponse.json({ 
-      message: 'Course deleted successfully',
-      deletedId: id 
-    });
+    return NextResponse.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Error deleting course:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

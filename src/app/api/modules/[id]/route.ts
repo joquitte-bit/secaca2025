@@ -1,21 +1,36 @@
-// src/app/api/modules/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient, ModuleStatus } from '@prisma/client'
+import { NextRequest } from 'next/server';
+import prisma from '@/lib/prisma';
 
-const prisma = new PrismaClient()
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    console.log(`🔍 Fetching module ID: ${params.id}`);
+    
+    const module = await prisma.module.findUnique({
+      where: { id: params.id },
+      include: {
+        lessonModules: {
+          include: {
+            lesson: true
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
 
-function mapStatus(status: string): ModuleStatus {
-  const statusMap: { [key: string]: ModuleStatus } = {
-    'CONCEPT': ModuleStatus.DRAFT,
-    'Concept': ModuleStatus.DRAFT,
-    'DRAFT': ModuleStatus.DRAFT,
-    'Actief': ModuleStatus.ACTIEF,
-    'ACTIEF': ModuleStatus.ACTIEF,
-    'Inactief': ModuleStatus.ARCHIVED,
-    'ARCHIVED': ModuleStatus.ARCHIVED
-  };
-  
-  return statusMap[status] || ModuleStatus.DRAFT;
+    if (!module) {
+      console.log('❌ Module not found');
+      return Response.json({ error: "Module not found" }, { status: 404 });
+    }
+
+    console.log('✅ Module found:', module.title);
+    return Response.json(module);
+  } catch (error) {
+    console.error('❌ Error fetching module:', error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(
@@ -23,101 +38,44 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const moduleId = params.id
-    console.log(`📝 PUT /api/modules/${moduleId} - Updating module`)
-    
-    const body = await request.json()
-    console.log('📦 Request body:', JSON.stringify(body, null, 2))
+    const body = await request.json();
+    const { title, description, duration, status, difficulty, category, order, lessonIds } = body;
 
-    // Pak ONLY de velden die bestaan in de database
-    const {
-      title,
-      description,
-      status,
-      content,
-      duration,
-      order,
-      tags,
-      category,
-      difficulty,
-      objectives,
-      prerequisites
-    } = body
-
-    // Check if module exists
-    const existingModule = await prisma.module.findUnique({
-      where: { id: moduleId }
-    })
-
-    if (!existingModule) {
-      return NextResponse.json(
-        { error: 'Module not found' },
-        { status: 404 }
-      )
-    }
-
-    // Map status naar Prisma enum
-    const prismaStatus = status ? mapStatus(status) : undefined
-
-    // Update module - ONLY met bestaande database velden
     const updatedModule = await prisma.module.update({
-      where: { id: moduleId },
+      where: { id: params.id },
       data: {
-        ...(title && { title: title.trim() }),
-        ...(description && { description: description.trim() }),
-        ...(status && { status: prismaStatus }),
-        ...(content !== undefined && { content: content.toString().trim() }),
-        ...(duration !== undefined && { duration: Number(duration) || 0 }),
-        ...(order !== undefined && { order: Number(order) || 0 }),
-        ...(tags && { tags: JSON.stringify(tags) }),
-        ...(category && { category: category.toString().trim() }),
-        ...(difficulty && { difficulty }),
-        ...(objectives !== undefined && { objectives: objectives.toString().trim() }),
-        ...(prerequisites !== undefined && { prerequisites: prerequisites.toString().trim() })
+        title,
+        description,
+        duration,
+        status,
+        difficulty,
+        category,
+        order,
+        // Update lesson connections if provided
+        ...(lessonIds && {
+          lessonModules: {
+            deleteMany: {}, // Remove existing connections
+            create: lessonIds.map((lessonId: string, index: number) => ({
+              lessonId,
+              order: index
+            }))
+          }
+        })
+      },
+      include: {
+        lessonModules: {
+          include: {
+            lesson: true
+          },
+          orderBy: { order: 'asc' }
+        }
       }
-    })
+    });
 
-    console.log('✅ Module updated successfully:', updatedModule.id)
-
-    // Response
-    const response = {
-      id: updatedModule.id,
-      title: updatedModule.title,
-      description: updatedModule.description,
-      status: updatedModule.status,
-      content: updatedModule.content,
-      duration: updatedModule.duration,
-      order: updatedModule.order,
-      tags: updatedModule.tags ? JSON.parse(updatedModule.tags) : [],
-      category: updatedModule.category,
-      difficulty: updatedModule.difficulty,
-      objectives: updatedModule.objectives,
-      prerequisites: updatedModule.prerequisites,
-      lessons: 0,
-      courseCount: updatedModule.courseCount || 0,
-      completionRate: updatedModule.completionRate || 0,
-      createdAt: updatedModule.createdAt.toISOString(),
-      updatedAt: updatedModule.updatedAt.toISOString()
-    }
-
-    return NextResponse.json(response)
-
-  } catch (error: any) {
-    console.error('❌ Error updating module:', error)
-    
-    if (error.code) {
-      console.error('Prisma error code:', error.code)
-    }
-    if (error.meta) {
-      console.error('Prisma error meta:', error.meta)
-    }
-    
-    return NextResponse.json(
-      { error: 'Failed to update module: ' + error.message },
-      { status: 500 }
-    )
-  } finally {
-    await prisma.$disconnect()
+    return Response.json(updatedModule);
+  } catch (error) {
+    console.error('Error updating module:', error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -126,40 +84,40 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const moduleId = params.id
-    console.log(`🗑️ DELETE /api/modules/${moduleId} - Deleting module`)
-
-    // Check if module exists
-    const existingModule = await prisma.module.findUnique({
-      where: { id: moduleId }
-    })
-
-    if (!existingModule) {
-      return NextResponse.json(
-        { error: 'Module not found' },
-        { status: 404 }
-      )
-    }
-
-    // Delete module
     await prisma.module.delete({
-      where: { id: moduleId }
-    })
+      where: { id: params.id }
+    });
 
-    console.log('✅ Module deleted successfully:', moduleId)
+    return Response.json({ message: "Module deleted successfully" });
+  } catch (error) {
+    console.error('Error deleting module:', error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
-    return NextResponse.json({ 
-      message: 'Module deleted successfully',
-      id: moduleId
-    })
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const body = await request.json();
+    
+    const updatedModule = await prisma.module.update({
+      where: { id: params.id },
+      data: body,
+      include: {
+        lessonModules: {
+          include: {
+            lesson: true
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
 
-  } catch (error: any) {
-    console.error('❌ Error deleting module:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete module: ' + error.message },
-      { status: 500 }
-    )
-  } finally {
-    await prisma.$disconnect()
+    return Response.json(updatedModule);
+  } catch (error) {
+    console.error('Error patching module:', error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

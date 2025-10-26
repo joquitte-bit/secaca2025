@@ -1,149 +1,253 @@
-export default async function LessonPage({ 
-  params 
-}: { 
-  params: Promise<{ courseId: string; moduleId: string; lessonId: string }>
-}) {
-  const { courseId, moduleId, lessonId } = await params
-  
-  const lesson = {
-    id: parseInt(lessonId),
-    title: "Inleiding tot Wachtwoordbeveiliging",
-    type: "Video" as const,
-    content: `
-      <h2>Waarom sterke wachtwoorden belangrijk zijn</h2>
-      <p>Wachtwoorden zijn de eerste verdedigingslinie tegen cyberaanvallen. Zwakke wachtwoorden zijn verantwoordelijk voor 80% van alle datalekken.</p>
-      
-      <h3>Kenmerken van een sterk wachtwoord:</h3>
-      <ul>
-        <li>Minimaal 12 karakters</li>
-        <li>Combinatie van hoofdletters, kleine letters, cijfers en symbolen</li>
-        <li>Geen persoonlijke informatie</li>
-        <li>Uniek voor elke account</li>
-      </ul>
-    `,
-    duration: 20,
-    module: "Wachtwoord Beveiliging",
-    instructor: "Dr. Jan Bakker"
-  }
+// src/app/learn/courses/[courseId]/modules/[moduleId]/lessons/[lessonId]/page.tsx
+import LearnSidebar from '@/components/LearnSidebar';
+import LessonsNavigator from '@/components/LessonsNavigator';
+import ReactMarkdown from 'react-markdown';
 
-  return (
-    <div>
-      {/* Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{lesson.title}</h1>
-        <p className="text-gray-600">
-          {lesson.module} · {lesson.instructor} · {lesson.duration} minuten
-        </p>
+interface PageProps {
+  params: Promise<{
+    courseId: string;
+    moduleId: string; 
+    lessonId: string;
+  }>;
+}
+
+export default async function LessonPage({ params }: PageProps) {
+  // AWAIT de params
+  const { courseId, moduleId, lessonId } = await params;
+
+  try {
+    // Fetch course data with modules and lessons
+    const course = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/courses/${courseId}`, {
+      cache: 'no-store',
+    }).then(res => res.json());
+
+    const module = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/modules/${moduleId}`, {
+      cache: 'no-store',
+    }).then(res => res.json());
+
+    const lesson = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/lessons/${lessonId}`, {
+      cache: 'no-store',
+    }).then(res => res.json());
+
+    if (!course || course.error || !module || module.error || !lesson || lesson.error) {
+      throw new Error('Data not found');
+    }
+
+    return (
+      <div className="min-h-[calc(100vh-4rem-3rem)] flex">
+        {/* Left Sidebar - Course Navigation */}
+        <div className="w-64 shrink-0">
+          {/* Lege div voor spacing - sidebar is fixed */}
+        </div>
         
-        {/* Progress */}
-        <div className="mt-4 flex items-center space-x-4 text-sm text-gray-600">
-          <span>Voortgang 0%</span>
-          <div className="flex-1 bg-gray-200 rounded-full h-2">
-            <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }}></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Video Player */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="aspect-video bg-gray-900 flex items-center justify-center">
-              <div className="text-center text-white">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-lg">Video Player</p>
-                <p className="text-sm text-gray-400">Placeholder voor video content</p>
-              </div>
-            </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex">
+          {/* Actual Sidebar Content */}
+          <div className="w-64 fixed left-0 top-16 h-[calc(100vh-4rem-3rem)] overflow-y-auto">
+            <LearnSidebar 
+              course={course}
+              currentModuleId={moduleId}
+              currentLessonId={lessonId}
+            />
           </div>
 
-          {/* Tabs */}
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
-                {['Transcript', 'Bronnen', 'Notities', 'Discussie'].map((tab) => (
-                  <button
-                    key={tab}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      tab === 'Transcript'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Video Transcript</h3>
-                <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span>Download Transcript</span>
-                </button>
+          {/* Middle - Lesson Content */}
+          <div className="flex-1 p-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 min-h-[500px]">
+              {/* Header */}
+              <div className="border-b border-gray-200 px-8 py-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                  {lesson.title || "Les titel"}
+                </h1>
+                <p className="text-gray-600">
+                  {`${lesson.category || "Categorie"} • ${lesson.duration || 0} minuten • ${lesson.difficulty || "Beginner"}`}
+                </p>
               </div>
 
-              <div 
-                className="prose max-w-none text-gray-700"
-                dangerouslySetInnerHTML={{ __html: lesson.content }}
-              />
-            </div>
-          </div>
-        </div>
+              {/* Video Player & Content */}
+              <div className="px-8 py-6">
+                {/* Video Player */}
+                {lesson.videoUrl ? (
+                  <div className="mb-6">
+                    <div className="bg-gray-100 rounded-lg overflow-hidden">
+                      {lesson.videoUrl.includes('youtube.com') || lesson.videoUrl.includes('youtu.be') ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${getYouTubeId(lesson.videoUrl)}`}
+                          className="w-full h-[34rem]"
+                          allowFullScreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          title={lesson.title}
+                        />
+                      ) : (
+                        <div className="w-full h-[34rem] flex items-center justify-center bg-gray-200 rounded-lg">
+                          <p className="text-gray-500">Video niet beschikbaar</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6">
+                    <div className="w-full h-[34rem] bg-black rounded-lg flex items-center justify-center">
+                      <div className="text-white text-center">
+                        <svg className="w-16 h-16 mx-auto text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="mt-2 text-lg">Video speler</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-        {/* Sidebar - Course Navigation */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Course Navigatie</h3>
-            
-            <nav className="space-y-3">
-              {[
-                { id: 1, title: "Inleiding Cybersecurity", completed: true },
-                { id: 2, title: "Wachtwoord Beveiliging", completed: false, active: true },
-                { id: 3, title: "Phishing Herkenning", completed: false },
-                { id: 4, title: "Social Engineering", completed: false }
-              ].map((module) => (
-                <div
-                  key={module.id}
-                  className={`p-3 rounded-lg text-sm ${
-                    module.active
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : module.completed
-                      ? 'text-gray-600 hover:bg-gray-50'
-                      : 'text-gray-400'
-                  }`}
-                >
-                  {module.title}
-                  {module.completed && (
-                    <svg className="w-4 h-4 float-right text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                {/* Video Controls */}
+                <div className="flex justify-between items-center mb-8">
+                  <div className="flex space-x-1">
+                    <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                      Transcript
+                    </button>
+                    <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                      Bronnen
+                    </button>
+                    <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                      Notities
+                    </button>
+                    <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                      Discussie
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-600">{lesson.duration || 0}:00 / {lesson.duration || 0}:00</span>
                 </div>
-              ))}
-            </nav>
 
-            <div className="mt-6 flex space-x-3">
-              <button className="flex-1 bg-gray-500 text-white py-2 px-3 rounded-lg hover:bg-gray-600 transition-colors text-sm">
-                Vorige
-              </button>
-              <button className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                Volgende
-              </button>
+                {/* Lesson Description */}
+                {lesson.description && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                      Over deze les
+                    </h2>
+                    <p className="text-gray-700 leading-relaxed">
+                      {lesson.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Lesson Content with Markdown */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Les Inhoud
+                  </h3>
+                  
+                  <div className="prose prose-gray max-w-none text-gray-700">
+                    {lesson.content ? (
+                      <ReactMarkdown>
+                        {lesson.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="text-gray-500 italic">
+                        Deze les heeft nog geen inhoud.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Objectives Section */}
+                {lesson.objectives && lesson.objectives.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Leerdoelen
+                    </h3>
+                    <ul className="space-y-2">
+                      {lesson.objectives.map((objective: string, index: number) => (
+                        <li key={index} className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border">
+                          <span className="text-gray-700">{objective}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Prerequisites Section */}
+                {lesson.prerequisites && lesson.prerequisites.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Vereiste Kennis
+                    </h3>
+                    <ul className="space-y-2">
+                      {lesson.prerequisites.map((prereq: string, index: number) => (
+                        <li key={index} className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border">
+                          <span className="text-gray-700">{prereq}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Progress Section */}
+                <div className="mt-12 pt-8 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm font-medium text-gray-700">Voortgang</span>
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: '0%' }}></div>
+                      </div>
+                      <span className="text-sm text-gray-600">0%</span>
+                    </div>
+                    
+                    <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200">
+                      Volgende Les
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* Right Sidebar - Lessons Navigator */}
+          <div className="w-80 p-6">
+            <LessonsNavigator 
+              module={module}
+              currentLessonId={lessonId}
+              courseId={courseId}
+            />
           </div>
         </div>
       </div>
-    </div>
-  )
+    );
+
+  } catch (error) {
+    console.error('Error loading lesson page:', error);
+    
+    return (
+      <div className="min-h-[calc(100vh-4rem-3rem)] flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Les niet gevonden</h1>
+          <p className="text-gray-600 mb-4">Er is een probleem met het laden van de les.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+// YouTube ID extractor helper functie
+function getYouTubeId(url: string): string {
+  if (!url) return '';
+  
+  // Voor YouTube URLs zoals: https://www.youtube.com/watch?v=VIDEO_ID
+  const match = url.match(/[?&]v=([^&]+)/);
+  if (match) return match[1];
+  
+  // Voor YouTube shortened URLs zoals: https://youtu.be/VIDEO_ID
+  const shortMatch = url.match(/youtu\.be\/([^?]+)/);
+  if (shortMatch) return shortMatch[1];
+  
+  // Voor YouTube embed URLs
+  const embedMatch = url.match(/embed\/([^?]+)/);
+  if (embedMatch) return embedMatch[1];
+  
+  return '';
 }

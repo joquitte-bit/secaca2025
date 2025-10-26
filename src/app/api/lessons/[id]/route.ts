@@ -1,4 +1,4 @@
-// 📁 BESTAND: /src/app/api/lessons/[id]/route.ts
+// src/app/api/lessons/[id]/route.ts - VERBETERDE VERSIE
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -11,17 +11,54 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    console.log('🔍 Fetching lesson ID:', id);
+
     const lesson = await prisma.lesson.findUnique({
       where: { id },
+      include: {
+        lessonModules: {
+          include: {
+            module: true
+          }
+        }
+      }
     });
 
     if (!lesson) {
       return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
     }
 
-    return NextResponse.json(lesson);
+    // Transform data voor frontend - gebruik alleen bestaande velden
+    const responseData = {
+      id: lesson.id,
+      title: lesson.title,
+      type: lesson.type?.toLowerCase() || 'text',
+      content: typeof lesson.content === 'string' ? 
+        (() => {
+          try {
+            const parsed = JSON.parse(lesson.content);
+            return parsed.content || lesson.content;
+          } catch {
+            return lesson.content;
+          }
+        })() : lesson.content,
+      duration: lesson.durationMinutes || 0,
+      progress: 0, // placeholder - bestaat niet in database
+      description: lesson.description,
+      difficulty: lesson.difficulty,
+      status: lesson.status,
+      category: lesson.category,
+      order: lesson.order,
+      // Alleen velden die bestaan in Lesson model
+      videoUrl: lesson.videoUrl,
+      tags: lesson.tags ? JSON.parse(lesson.tags) : []
+    };
+
+    console.log('✅ Lesson found:', responseData.title);
+    return NextResponse.json(responseData);
+
   } catch (error) {
-    console.error('Error fetching lesson:', error);
+    console.error('❌ Lesson API Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -63,12 +100,6 @@ export async function PUT(
     if (status === 'Inactief') prismaStatus = 'ARCHIVED';
     if (status === 'Concept') prismaStatus = 'DRAFT';
 
-    // Map difficulty - gebruik exact dezelfde values
-    let prismaDifficulty: string | undefined = difficulty;
-
-    // Map type - gebruik exact dezelfde values
-    let prismaType: any = type;
-
     // Tags als JSON string opslaan
     const tagsJson = tags ? JSON.stringify(tags) : undefined;
 
@@ -81,9 +112,9 @@ export async function PUT(
     if (description) updateData.description = description;
     if (prismaStatus) updateData.status = prismaStatus;
     if (category) updateData.category = category;
-    if (duration !== undefined) updateData.durationMinutes = duration; // Map naar durationMinutes
-    if (prismaDifficulty) updateData.difficulty = prismaDifficulty;
-    if (prismaType) updateData.type = prismaType;
+    if (duration !== undefined) updateData.durationMinutes = duration;
+    if (difficulty) updateData.difficulty = difficulty;
+    if (type) updateData.type = type;
     if (tagsJson) updateData.tags = tagsJson;
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
     if (content) updateData.content = content;
@@ -110,7 +141,7 @@ export async function PUT(
     // Return de updated lesson met alle velden
     const responseLesson = {
       ...updatedLesson,
-      duration: updatedLesson.durationMinutes, // Map terug naar duration voor frontend
+      duration: updatedLesson.durationMinutes,
       tags: updatedLesson.tags ? JSON.parse(updatedLesson.tags) : [],
     }
 
@@ -148,7 +179,7 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    // Map status to Prisma enum (alleen als meegegeven) - CONSISTENT MET COURSES/MODULES
+    // Map status to Prisma enum (alleen als meegegeven)
     if (status !== undefined) {
       let prismaStatus: any = undefined;
       if (status === 'Actief') prismaStatus = 'PUBLISHED';
@@ -157,30 +188,13 @@ export async function PATCH(
       if (prismaStatus) updateData.status = prismaStatus;
     }
 
-    // Map difficulty (alleen als meegegeven)
-    if (difficulty !== undefined) {
-      let prismaDifficulty: string | undefined = undefined;
-      if (difficulty === 'Beginner') prismaDifficulty = 'beginner';
-      if (difficulty === 'Intermediate') prismaDifficulty = 'intermediate';
-      if (difficulty === 'Expert') prismaDifficulty = 'expert';
-      if (prismaDifficulty) updateData.difficulty = prismaDifficulty;
-    }
-
-    // Map type to Prisma enum (alleen als meegegeven)
-    if (type !== undefined) {
-      let prismaType: any = undefined;
-      if (type === 'Video') prismaType = 'VIDEO';
-      if (type === 'Artikel') prismaType = 'TEXT';
-      if (type === 'Quiz') prismaType = 'QUIZ';
-      if (type === 'Interactief') prismaType = 'DOWNLOAD';
-      if (prismaType) updateData.type = prismaType;
-    }
-
     // Alleen velden updaten die zijn meegegeven
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (category !== undefined) updateData.category = category;
     if (duration !== undefined) updateData.durationMinutes = duration;
+    if (difficulty !== undefined) updateData.difficulty = difficulty;
+    if (type !== undefined) updateData.type = type;
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
     if (content !== undefined) updateData.content = content;
     if (order !== undefined) updateData.order = order;

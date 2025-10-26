@@ -9,6 +9,7 @@ interface Lesson {
   title: string
   description: string
   content: string
+  transcript: string // NIEUW VELD TOEGEVOEGD
   type: 'VIDEO' | 'QUIZ' | 'TEXT' | 'DOWNLOAD'
   difficulty: 'Beginner' | 'Intermediate' | 'Expert'
   duration: number
@@ -19,6 +20,7 @@ interface Lesson {
   resources: string[]
   objectives: string[]
   prerequisites: string[]
+  videoUrl: string
   createdAt: string
   updatedAt: string
   moduleId?: string
@@ -58,6 +60,7 @@ const LessonEditor = ({ lesson, categories = [], onClose, onSave }: LessonEditor
     title: '',
     description: '',
     content: '',
+    transcript: '', // NIEUW VELD TOEGEVOEGD
     type: 'TEXT',
     difficulty: 'Beginner',
     duration: 0,
@@ -68,6 +71,7 @@ const LessonEditor = ({ lesson, categories = [], onClose, onSave }: LessonEditor
     resources: [],
     objectives: [],
     prerequisites: [],
+    videoUrl: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     moduleId: '',
@@ -82,42 +86,46 @@ const LessonEditor = ({ lesson, categories = [], onClose, onSave }: LessonEditor
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   useEffect(() => {
-  if (lesson) {
-    setFormData({
-      ...lesson,
-      duration: lesson.duration || 0, // Zorg dat duration wordt geladen
-      difficulty: lesson.difficulty || 'Beginner',
-      type: lesson.type || 'TEXT',
-      category: lesson.category || '',
-      tags: Array.isArray(lesson.tags) ? lesson.tags : [],
-      resources: Array.isArray(lesson.resources) ? lesson.resources : [],
-      objectives: Array.isArray(lesson.objectives) ? lesson.objectives : [],
-      prerequisites: Array.isArray(lesson.prerequisites) ? lesson.prerequisites : []
-    })
-  } else {
-    // Reset form for new lesson
-    setFormData({
-      id: '',
-      title: '',
-      description: '',
-      content: '',
-      type: 'TEXT',
-      difficulty: 'Beginner',
-      duration: 0,
-      category: '',
-      tags: [],
-      status: 'CONCEPT',
-      order: 0,
-      resources: [],
-      objectives: [],
-      prerequisites: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      moduleId: '',
-      courseId: ''
-    })
-  }
-}, [lesson])
+    if (lesson) {
+      setFormData({
+        ...lesson,
+        duration: lesson.duration || 0,
+        difficulty: lesson.difficulty || 'Beginner',
+        type: lesson.type || 'TEXT',
+        category: lesson.category || '',
+        tags: Array.isArray(lesson.tags) ? lesson.tags : [],
+        resources: Array.isArray(lesson.resources) ? lesson.resources : [],
+        objectives: Array.isArray(lesson.objectives) ? lesson.objectives : [],
+        prerequisites: Array.isArray(lesson.prerequisites) ? lesson.prerequisites : [],
+        videoUrl: lesson.videoUrl || '',
+        transcript: lesson.transcript || '' // NIEUW VELD TOEGEVOEGD
+      })
+    } else {
+      // Reset form for new lesson
+      setFormData({
+        id: '',
+        title: '',
+        description: '',
+        content: '',
+        transcript: '', // NIEUW VELD TOEGEVOEGD
+        type: 'TEXT',
+        difficulty: 'Beginner',
+        duration: 0,
+        category: '',
+        tags: [],
+        status: 'CONCEPT',
+        order: 0,
+        resources: [],
+        objectives: [],
+        prerequisites: [],
+        videoUrl: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        moduleId: '',
+        courseId: ''
+      })
+    }
+  }, [lesson])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -194,90 +202,93 @@ const LessonEditor = ({ lesson, categories = [], onClose, onSave }: LessonEditor
     }))
   }
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  
-  if (!formData.title || !formData.description || !formData.category) {
-    alert('Vul verplichte velden in: Titel, Beschrijving en Categorie')
-    return
-  }
-
-  setIsLoading(true)
-
-  try {
-    // Map status van frontend naar backend formaat
-    const statusMapping = {
-      'PUBLISHED': 'Actief',
-      'ARCHIVED': 'Inactief', 
-      'CONCEPT': 'Concept'
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.title || !formData.description || !formData.category) {
+      alert('Vul verplichte velden in: Titel, Beschrijving en Categorie')
+      return
     }
 
-    const lessonData = {
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      content: formData.content || '',
-      type: formData.type,
-      difficulty: formData.difficulty,
-      duration: safeNumber(formData.duration),
-      category: formData.category,
-      tags: formData.tags,
-      status: statusMapping[formData.status as keyof typeof statusMapping] || 'Concept',
-      order: formData.order || 0,
-      resources: formData.resources,
-      objectives: formData.objectives,
-      prerequisites: formData.prerequisites
-    }
+    setIsLoading(true)
 
-    console.log('💾 Saving lesson data:', lessonData)
-
-    // Gebruik PUT voor zowel create als update
-    const url = lesson?.id ? `/api/lessons/${lesson.id}` : '/api/lessons'
-    const method = lesson?.id ? 'PUT' : 'POST'
-
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(lessonData),
-    })
-
-    if (!response.ok) {
-      let errorMessage = `Server error: ${response.status}`
-      try {
-        const errorData = await response.json()
-        errorMessage = errorData.error || errorData.message || errorMessage
-      } catch (parseError) {
-        errorMessage = response.statusText || errorMessage
+    try {
+      // Map status van frontend naar backend formaat
+      const statusMapping = {
+        'PUBLISHED': 'Actief',
+        'ARCHIVED': 'Inactief', 
+        'CONCEPT': 'Concept'
       }
-      throw new Error(errorMessage)
-    }
 
-    const savedLesson = await response.json()
-    console.log('✅ Lesson saved successfully:', savedLesson)
-    
-    // Transform de backend response naar frontend formaat
-    const transformedLesson = {
-      ...savedLesson,
-      status: savedLesson.status === 'PUBLISHED' ? 'PUBLISHED' : 
-              savedLesson.status === 'ARCHIVED' ? 'ARCHIVED' : 'CONCEPT',
-      // Zorg dat alle velden correct worden gemapped
-      duration: savedLesson.durationMinutes || savedLesson.duration || 0,
-      difficulty: savedLesson.difficulty || 'Beginner',
-      type: savedLesson.type || 'TEXT'
+      const lessonData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        content: formData.content || '',
+        transcript: formData.transcript || '', // NIEUW VELD TOEGEVOEGD
+        type: formData.type,
+        difficulty: formData.difficulty,
+        duration: safeNumber(formData.duration),
+        category: formData.category,
+        tags: formData.tags,
+        status: statusMapping[formData.status as keyof typeof statusMapping] || 'Concept',
+        order: formData.order || 0,
+        resources: formData.resources,
+        objectives: formData.objectives,
+        prerequisites: formData.prerequisites,
+        videoUrl: formData.videoUrl.trim()
+      }
+
+      console.log('💾 Saving lesson data:', lessonData)
+
+      // Gebruik PUT voor zowel create als update
+      const url = lesson?.id ? `/api/lessons/${lesson.id}` : '/api/lessons'
+      const method = lesson?.id ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lessonData),
+      })
+
+      if (!response.ok) {
+        let errorMessage = `Server error: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || errorMessage
+        } catch (parseError) {
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      const savedLesson = await response.json()
+      console.log('✅ Lesson saved successfully:', savedLesson)
+      
+      // Transform de backend response naar frontend formaat
+      const transformedLesson = {
+        ...savedLesson,
+        status: savedLesson.status === 'PUBLISHED' ? 'PUBLISHED' : 
+                savedLesson.status === 'ARCHIVED' ? 'ARCHIVED' : 'CONCEPT',
+        // Zorg dat alle velden correct worden gemapped
+        duration: savedLesson.durationMinutes || savedLesson.duration || 0,
+        difficulty: savedLesson.difficulty || 'Beginner',
+        type: savedLesson.type || 'TEXT',
+        videoUrl: savedLesson.videoUrl || '',
+        transcript: savedLesson.transcript || '' // NIEUW VELD TOEGEVOEGD
+      }
+      
+      onSave(transformedLesson)
+      setShowSuccessModal(true)
+      
+    } catch (error: any) {
+      console.error('❌ Save error:', error)
+      alert(`Fout bij opslaan lesson: ${error.message}`)
+    } finally {
+      setIsLoading(false)
     }
-    
-    onSave(transformedLesson)
-    setShowSuccessModal(true)
-    
-  } catch (error: any) {
-    console.error('❌ Save error:', error)
-    alert(`Fout bij opslaan lesson: ${error.message}`)
-  } finally {
-    setIsLoading(false)
   }
-}
-
 
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false)
@@ -291,6 +302,13 @@ const handleSubmit = async (e: React.FormEvent) => {
       case 'DOWNLOAD': return <Icons.download className="w-5 h-5" />
       default: return <Icons.document className="w-5 h-5" />
     }
+  }
+
+  // Helper functie om YouTube URL te valideren
+  const isValidYouTubeUrl = (url: string): boolean => {
+    if (!url) return false
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+    return youtubeRegex.test(url)
   }
 
   return (
@@ -424,6 +442,41 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               </div>
 
+              {/* Video URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Video URL (YouTube)
+                </label>
+                <input
+                  type="url"
+                  value={formData.videoUrl}
+                  onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://www.youtube.com/watch?v=... of https://youtu.be/..."
+                  disabled={isLoading}
+                />
+                <div className="mt-2 flex items-center space-x-2 text-xs">
+                  {formData.videoUrl && (
+                    <>
+                      {isValidYouTubeUrl(formData.videoUrl) ? (
+                        <span className="text-green-600 flex items-center">
+                          <Icons.check className="w-4 h-4 mr-1" />
+                          Geldige YouTube URL
+                        </span>
+                      ) : (
+                        <span className="text-orange-600 flex items-center">
+                          <Icons.warning className="w-4 h-4 mr-1" />
+                          Mogelijk ongeldige YouTube URL
+                        </span>
+                      )}
+                    </>
+                  )}
+                  <span className="text-gray-500">
+                    Ondersteund: youtube.com/watch?v=... of youtu.be/...
+                  </span>
+                </div>
+              </div>
+
               {/* Lesson Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -434,9 +487,27 @@ const handleSubmit = async (e: React.FormEvent) => {
                   value={formData.content}
                   onChange={(e) => handleInputChange('content', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Volledige inhoud van de les..."
+                  placeholder="Volledige inhoud van de les (getoond in 'Les Inhoud' tab)..."
                   disabled={isLoading}
                 />
+              </div>
+
+              {/* Transcript - NIEUW VELD TOEGEVOEGD */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Video Transcript
+                </label>
+                <textarea
+                  rows={8}
+                  value={formData.transcript}
+                  onChange={(e) => handleInputChange('transcript', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Volledige transcript van de video (getoond in 'Transcript' tab)..."
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Dit transcript wordt getoond wanneer gebruikers op de "Transcript" tab klikken
+                </p>
               </div>
 
               {/* Objectives */}
@@ -524,7 +595,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               {/* Resources */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bronnen
+                  Bronnen (extra links)
                 </label>
                 <div className="flex gap-2 mb-4">
                   <input
@@ -647,6 +718,8 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
                   {formData.type} • {formData.duration} minuten
+                  {formData.videoUrl && ' • 📹 Video beschikbaar'}
+                  {formData.transcript && ' • 📝 Transcript beschikbaar'}
                 </div>
                 <div className="flex items-center space-x-3">
                   <button
