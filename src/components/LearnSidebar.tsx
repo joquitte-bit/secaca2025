@@ -1,11 +1,17 @@
 // src/components/LearnSidebar.tsx
+'use client';
+
 import Link from 'next/link';
 import { Icons } from './Icons';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
+// Update alleen de interfaces om nullable fields te accepteren
 interface Lesson {
   id: string;
   title: string;
-  duration: number;
+  duration: number | null; // <- null toestaan
+  durationMinutes?: number | null; // <- optioneel toevoegen
 }
 
 interface Module {
@@ -19,29 +25,96 @@ interface Module {
 interface Course {
   id: string;
   title: string;
-  description: string;
+  description: string | null; // <- null toestaan
   courseModules: {
     module: Module;
   }[];
 }
 
+// De rest van de code blijft EXACT hetzelfde...
 interface LearnSidebarProps {
   course: Course;
   currentModuleId: string;
   currentLessonId: string;
 }
 
+interface ProgressData {
+  totalLessons: number;
+  completedLessons: number;
+  progressPercentage: number;
+  moduleProgress: {
+    moduleId: string;
+    completedLessons: number;
+    totalLessons: number;
+    progressPercentage: number;
+  }[];
+}
+
 export default function LearnSidebar({ course, currentModuleId, currentLessonId }: LearnSidebarProps) {
-  const totalLessons = course.courseModules.reduce(
-    (total, cm) => total + cm.module.lessonModules.length, 
-    0
-  );
-  
-  const completedLessons = 0;
-  const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const pathname = usePathname();
+  const [progressData, setProgressData] = useState<ProgressData>({
+    totalLessons: 0,
+    completedLessons: 0,
+    progressPercentage: 0,
+    moduleProgress: []
+  });
+
+  // Haal progress op voor de hele course
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch(`/api/progress/courses/${course.id}`);
+        if (response.ok) {
+          const courseProgress = await response.json();
+          
+          // Bereken module progress
+          const moduleProgress = course.courseModules.map(courseModule => {
+            const module = courseModule.module;
+            const moduleLessons = module.lessonModules.map(lm => lm.lesson.id);
+            const completedInModule = courseProgress.lessons.filter(
+              (l: any) => moduleLessons.includes(l.lessonId) && l.completed
+            ).length;
+            
+            return {
+              moduleId: module.id,
+              completedLessons: completedInModule,
+              totalLessons: moduleLessons.length,
+              progressPercentage: moduleLessons.length > 0 
+                ? Math.round((completedInModule / moduleLessons.length) * 100) 
+                : 0
+            };
+          });
+
+          setProgressData({
+            totalLessons: courseProgress.totalLessons,
+            completedLessons: courseProgress.completedLessons,
+            progressPercentage: courseProgress.progressPercentage,
+            moduleProgress
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching course progress:', error);
+      }
+    };
+
+    fetchProgress();
+  }, [course.id, course.courseModules, pathname]);
+
+  const getModuleProgress = (moduleId: string) => {
+    return progressData.moduleProgress.find(mp => mp.moduleId === moduleId) || {
+      completedLessons: 0,
+      totalLessons: 0,
+      progressPercentage: 0
+    };
+  };
+
+  const getLessonCompletion = (lessonId: string) => {
+    // We kunnen dit later optimaliseren, voor nu gebruiken we een simpele check
+    return false; // Dit zou via de API moeten, maar houden we simpel voor nu
+  };
 
   return (
-    <div className="w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 fixed left-0 top-16 flex flex-col"> {/* top-16 i.p.v. top-0 */}
+    <div className="w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 fixed left-0 top-16 flex flex-col">
       {/* Content - ZONDER header, begint direct met course info */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
@@ -54,12 +127,12 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
             <div className="mb-4">
               <div className="flex justify-between text-xs text-gray-600 mb-1">
                 <span>Voortgang</span>
-                <span className="font-semibold">{progressPercentage}%</span>
+                <span className="font-semibold">{progressData.progressPercentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progressPercentage}%` }}
+                  style={{ width: `${progressData.progressPercentage}%` }}
                 ></div>
               </div>
             </div>
@@ -71,11 +144,11 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                 <div className="text-gray-500">Modules</div>
               </div>
               <div className="bg-gray-50 rounded p-2">
-                <div className="font-bold text-gray-900">{totalLessons}</div>
+                <div className="font-bold text-gray-900">{progressData.totalLessons}</div>
                 <div className="text-gray-500">Lessen</div>
               </div>
               <div className="bg-gray-50 rounded p-2">
-                <div className="font-bold text-gray-900">{completedLessons}</div>
+                <div className="font-bold text-gray-900">{progressData.completedLessons}</div>
                 <div className="text-gray-500">Voltooid</div>
               </div>
             </div>
@@ -84,8 +157,8 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
           {/* Modules Navigation */}
           <nav className="space-y-2">
             {/* MODULES TITEL MET LIJN - zoals in dashboard */}
-  <div className="border-b border-gray-200 pb-3 mb-3"> {/* Deze mag blijven? */}
-    <h3 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
+            <div className="border-b border-gray-200 pb-3 mb-3">
+              <h3 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
                 MODULES
               </h3>
             </div>
@@ -93,11 +166,7 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
             {course.courseModules.map((courseModule, index) => {
               const module = courseModule.module;
               const moduleLessons = module.lessonModules;
-              const moduleCompletedLessons = 0;
-              const moduleProgress = moduleLessons.length > 0 
-                ? Math.round((moduleCompletedLessons / moduleLessons.length) * 100) 
-                : 0;
-              
+              const moduleProgress = getModuleProgress(module.id);
               const isCurrentModule = module.id === currentModuleId;
 
               return (
@@ -115,14 +184,20 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                           isCurrentModule 
                             ? 'bg-blue-100 text-blue-700' 
-                            : 'bg-white text-gray-600'
+                            : moduleProgress.progressPercentage === 100
+                              ? 'bg-green-100 text-green-600'
+                              : 'bg-white text-gray-600'
                         }`}>
-                          {index + 1}
+                          {moduleProgress.progressPercentage === 100 ? (
+                            <Icons.check className="w-3 h-3" />
+                          ) : (
+                            index + 1
+                          )}
                         </span>
                         <h4 className="font-medium text-sm leading-tight">{module.title}</h4>
                       </div>
                       <span className="text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded">
-                        {moduleLessons.length}
+                        {moduleProgress.completedLessons}/{moduleLessons.length}
                       </span>
                     </div>
                     
@@ -130,12 +205,14 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                     <div className="flex items-center space-x-2 text-xs">
                       <div className="flex-1 bg-white rounded-full h-1.5">
                         <div 
-                          className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${moduleProgress}%` }}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            moduleProgress.progressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${moduleProgress.progressPercentage}%` }}
                         ></div>
                       </div>
                       <span className="text-gray-500 whitespace-nowrap text-xs">
-                        {moduleProgress}%
+                        {moduleProgress.progressPercentage}%
                       </span>
                     </div>
                   </Link>
@@ -150,7 +227,10 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                         {moduleLessons.map((lessonModule, lessonIndex) => {
                           const lesson = lessonModule.lesson;
                           const isCurrentLesson = lesson.id === currentLessonId;
-                          const isCompleted = false;
+                          
+                          // Simpele check - in een echte app zou dit via API moeten
+                          const isCompleted = moduleProgress.completedLessons > lessonIndex;
+                          const duration = lesson.duration || lesson.durationMinutes || 0; // <- null-safe duration
                           
                           return (
                             <Link
@@ -169,11 +249,15 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                                     ? 'bg-blue-200 text-blue-700'
                                     : 'bg-gray-100 text-gray-500'
                               }`}>
-                                {lessonIndex + 1}
+                                {isCompleted ? (
+                                  <Icons.check className="w-3 h-3" />
+                                ) : (
+                                  lessonIndex + 1
+                                )}
                               </span>
                               <span className="flex-1 truncate">{lesson.title}</span>
                               <span className="text-gray-400 ml-1 text-xs">
-                                {lesson.duration}m
+                                {duration} min
                               </span>
                             </Link>
                           );

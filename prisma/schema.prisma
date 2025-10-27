@@ -75,6 +75,7 @@ model User {
   enrollments  Enrollment[]
   quizAttempts QuizAttempt[]
   organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lessonProgress UserLessonProgress[]
 
   @@index([orgId, email])
   @@map("users")
@@ -181,9 +182,27 @@ model Lesson {
   organization     Organization?    @relation(fields: [orgId], references: [id], onDelete: Cascade)
   quizAttempts     QuizAttempt[]
   quizQuestions    QuizQuestion[]
+  userProgress     UserLessonProgress[]
 
   @@index([orgId])
   @@map("lessons")
+}
+
+model UserLessonProgress {
+  id               String   @id @default(cuid())
+  userId           String
+  lessonId         String
+  completed        Boolean  @default(false)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relaties
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("user_lesson_progress")
 }
 
 model CourseOnModule {
@@ -214,9 +233,9 @@ model QuizQuestion {
   id           String  @id @default(cuid())
   lessonId     String
   prompt       String
-  answers      String
-  correctIndex Int
-  explanation  String?
+  answers      String  // JSON string van antwoorden
+  correctIndex Int     // Index van correct antwoord (0-based)
+  explanation  String? // Uitleg waarom dit antwoord correct is
   order        Int     @default(0)
   lesson       Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
@@ -228,9 +247,9 @@ model QuizAttempt {
   id        String   @id @default(cuid())
   userId    String
   lessonId  String
-  score     Int
-  passed    Boolean
-  answers   String
+  score     Int      // Aantal correcte antwoorden
+  passed    Boolean  // Of de gebruiker geslaagd is
+  answers   String   // JSON string van gegeven antwoorden
   createdAt DateTime @default(now())
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,27 +1,29 @@
-// src/app/learn/layout.tsx
-import { LearnNav } from '@/components/LearnNav';
-
 export default function LearnLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Fixed Navbar - ZONDER ml-64 */}
-      <LearnNav />
-      
-      {/* Main Content - ZONDER ml-64, sidebar wordt in children geplaatst */}
-      <div className="flex-1 pt-16"> {/* pt-16 voor navbar hoogte */}
-        {children}
-      </div>
-      
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 h-12 flex items-center justify-center">
-        <div className="text-center text-gray-500 text-sm">
-          SECACA Learn &copy; {new Date().getFullYear()}
+      {/* Simple header voor learn sectie */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-semibold text-gray-900">Learn</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <a 
+                href="/dashboard" 
+                className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+              >
+                Dashboard
+              </a>
+            </div>
+          </div>
         </div>
-      </footer>
+      </header>
+      {children}
     </div>
-  );
+  )
 }

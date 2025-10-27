@@ -37,3 +37,17 @@ export interface Lesson {
   createdAt: string
   updatedAt: string
 }
+
+export interface UserLessonProgress {
+  id: string;
+  userId: string;
+  lessonId: string;
+  completed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LessonWithProgress extends Lesson {
+  userProgress: UserLessonProgress[];
+  isCompleted?: boolean;
+}

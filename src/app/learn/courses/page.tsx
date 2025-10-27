@@ -1,61 +1,76 @@
-export default function LearnCoursesPage() {
-  const availableCourses = [
-    {
-      id: 1,
-      title: "Cybersecurity Basis",
-      description: "Leer de fundamenten van cybersecurity awareness",
-      progress: 0,
-      moduleCount: 4,
-      duration: "2 uur",
-      category: "Basis"
+// src/app/learn/courses/page.tsx
+import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
+
+export default async function CoursesPage() {
+  const courses = await prisma.course.findMany({
+    include: {
+      organization: true,
+      courseModules: {
+        include: {
+          module: {
+            include: {
+              lessonModules: {
+                include: {
+                  lesson: true
+                }
+              }
+            }
+          }
+        }
+      }
     },
-    {
-      id: 2, 
-      title: "Phishing Herkenning",
-      description: "Leer phishing attempts herkennen en voorkomen",
-      progress: 0,
-      moduleCount: 3,
-      duration: "1.5 uur",
-      category: "Geavanceerd"
+    orderBy: {
+      createdAt: 'desc'
     }
-  ]
+  });
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Mijn Courses</h1>
-        <p className="text-gray-600">Kies een course om te starten met leren</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {availableCourses.map((course) => (
-          <div key={course.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                {course.category}
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm mb-4">{course.description}</p>
-            
-            <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-              <span>{course.moduleCount} modules</span>
-              <span>{course.duration}</span>
-            </div>
-
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${course.progress}%` }}
-              ></div>
-            </div>
-
-            <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-              {course.progress > 0 ? 'Verder leren' : 'Start course'}
-            </button>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Beschikbare Cursussen</h1>
+        
+        {courses.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg mb-4">Geen cursussen gevonden</p>
+            <p className="text-gray-400 text-sm">
+              Run eerst de database seed: <code>npx prisma db seed</code>
+            </p>
           </div>
-        ))}
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
+              <Link
+                key={course.id}
+                href={`/learn/courses/${course.id}/modules/${course.courseModules[0]?.module.id}/lessons/${course.courseModules[0]?.module.lessonModules[0]?.lesson.id}`}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow block"
+              >
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  {course.title}
+                </h2>
+                <p className="text-gray-600 mb-4 line-clamp-2">
+                  {course.description}
+                </p>
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>{course.courseModules.length} modules</span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    course.status === 'PUBLISHED' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {course.status}
+                  </span>
+                </div>
+                <div className="mt-4">
+                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                    {course.organization.name}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
