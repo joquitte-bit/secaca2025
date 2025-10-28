@@ -6,12 +6,12 @@ import { Icons } from './Icons';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-// Update alleen de interfaces om nullable fields te accepteren
+// Interfaces blijven hetzelfde zoals je hebt aangepast
 interface Lesson {
   id: string;
   title: string;
-  duration: number | null; // <- null toestaan
-  durationMinutes?: number | null; // <- optioneel toevoegen
+  duration: number | null;
+  durationMinutes?: number | null;
 }
 
 interface Module {
@@ -25,13 +25,12 @@ interface Module {
 interface Course {
   id: string;
   title: string;
-  description: string | null; // <- null toestaan
+  description: string | null;
   courseModules: {
     module: Module;
   }[];
 }
 
-// De rest van de code blijft EXACT hetzelfde...
 interface LearnSidebarProps {
   course: Course;
   currentModuleId: string;
@@ -71,9 +70,9 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
           const moduleProgress = course.courseModules.map(courseModule => {
             const module = courseModule.module;
             const moduleLessons = module.lessonModules.map(lm => lm.lesson.id);
-            const completedInModule = courseProgress.lessons.filter(
+            const completedInModule = courseProgress.lessons?.filter(
               (l: any) => moduleLessons.includes(l.lessonId) && l.completed
-            ).length;
+            ).length || 0;
             
             return {
               moduleId: module.id,
@@ -86,9 +85,9 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
           });
 
           setProgressData({
-            totalLessons: courseProgress.totalLessons,
-            completedLessons: courseProgress.completedLessons,
-            progressPercentage: courseProgress.progressPercentage,
+            totalLessons: courseProgress.totalLessons || 0,
+            completedLessons: courseProgress.completedLessons || 0,
+            progressPercentage: courseProgress.progressPercentage || 0,
             moduleProgress
           });
         }
@@ -108,11 +107,6 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
     };
   };
 
-  const getLessonCompletion = (lessonId: string) => {
-    // We kunnen dit later optimaliseren, voor nu gebruiken we een simpele check
-    return false; // Dit zou via de API moeten, maar houden we simpel voor nu
-  };
-
   return (
     <div className="w-64 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 fixed left-0 top-16 flex flex-col">
       {/* Content - ZONDER header, begint direct met course info */}
@@ -121,7 +115,9 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
           {/* Course Info */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h2>
-            <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+            <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+              {course.description || 'Geen beschrijving beschikbaar'}
+            </p>
             
             {/* Progress Bar */}
             <div className="mb-4">
@@ -208,7 +204,7 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                           className={`h-1.5 rounded-full transition-all duration-300 ${
                             moduleProgress.progressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'
                           }`}
-                          style={{ width: `${moduleProgress.progressPercentage}%` }}
+                          style={{ width: `${Math.max(moduleProgress.progressPercentage, 5)}%` }}
                         ></div>
                       </div>
                       <span className="text-gray-500 whitespace-nowrap text-xs">
@@ -229,8 +225,8 @@ export default function LearnSidebar({ course, currentModuleId, currentLessonId 
                           const isCurrentLesson = lesson.id === currentLessonId;
                           
                           // Simpele check - in een echte app zou dit via API moeten
-                          const isCompleted = moduleProgress.completedLessons > lessonIndex;
-                          const duration = lesson.duration || lesson.durationMinutes || 0; // <- null-safe duration
+                          const isCompleted = lessonIndex < moduleProgress.completedLessons;
+                          const duration = lesson.duration || lesson.durationMinutes || 0;
                           
                           return (
                             <Link

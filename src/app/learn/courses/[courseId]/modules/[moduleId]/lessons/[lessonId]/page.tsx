@@ -497,13 +497,14 @@ export default async function LessonPage({ params }: PageProps) {
                         </div>
                         
                         {/* Complete Lesson Button - CLIENT COMPONENT */}
-                        <CompleteLessonButton 
-                          lessonId={lessonId}
-                          isCompleted={currentLessonProgress.completed}
-                          nextLesson={nextLesson}
-                          courseId={courseId}
-                          moduleId={moduleId}
-                        />
+<CompleteLessonButton 
+  lessonId={lessonId}
+  isCompleted={currentLessonProgress.completed}
+  nextLesson={nextLesson}
+  courseId={courseId}
+  moduleId={moduleId}
+  hasQuiz={hasQuiz} // ← NIEUW: geef hasQuiz door
+/>
                       </div>
                     </div>
 

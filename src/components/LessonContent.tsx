@@ -40,10 +40,10 @@ const LessonContent = ({ lesson }: LessonContentProps) => {
           {lesson.videoUrl && (
             <>
               <div className="bg-black rounded-lg overflow-hidden mb-8">
-                <div className="aspect-video bg-gray-800 flex items-center justify-center">
+                <div className="w-full h-96 bg-gray-800 flex items-center justify-center">
                   <iframe
                     src={`https://www.youtube.com/embed/${getYouTubeId(lesson.videoUrl)}`}
-                    className="w-full h-full"
+                    className="w-full h-96"
                     allowFullScreen
                   />
                 </div>

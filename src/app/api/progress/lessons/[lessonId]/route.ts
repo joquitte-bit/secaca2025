@@ -4,15 +4,14 @@ import { getCurrentUser } from '@/lib/session'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { lessonId: string } }
+  { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
+    const { lessonId } = await params;
     const user = await getCurrentUser()
     
-    // Voor development, gebruik demo user als er geen is
-    const userId = user?.id || 'cmh8laluq0000874a2abur4m2-user'
-
-    const lessonId = params.lessonId
+    // Gebruik de echte user ID voor development
+    const userId = user?.id || 'cmh9la1uu0004874a9mlxtu4c'
 
     // Haal lesson progress op
     const progress = await prisma.userLessonProgress.findUnique({

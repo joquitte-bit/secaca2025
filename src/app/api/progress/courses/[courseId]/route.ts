@@ -4,15 +4,14 @@ import { getCurrentUser } from '@/lib/session'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const user = await getCurrentUser()
     
-    // Voor development, gebruik demo user als er geen is
-    const userId = user?.id || 'cmh8laluq0000874a2abur4m2-user'
-
-    const courseId = params.courseId
+    // Gebruik de echte user ID voor development
+    const userId = user?.id || 'cmh9la1uu0004874a9mlxtu4c'
 
     console.log('Fetching progress for course:', courseId, 'user:', userId)
 
